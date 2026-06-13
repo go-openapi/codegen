@@ -4,30 +4,37 @@
 
 | Total Contributors | Total Contributions |
 | --- | --- |
-| 24  | 181  |
+| 31  | 257  |
 
 | Username | All Time Contribution Count | All Commits |
 | --- | --- | --- |
-| @fredbi | 92 | <https://github.com/go-openapi/codegen/commits?author=fredbi> |
-| @casualjim | 44 | <https://github.com/go-openapi/codegen/commits?author=casualjim> |
+| @fredbi | 128 | <https://github.com/go-openapi/codegen/commits?author=fredbi> |
+| @casualjim | 72 | <https://github.com/go-openapi/codegen/commits?author=casualjim> |
 | @pieter-lazzaro | 10 | <https://github.com/go-openapi/codegen/commits?author=pieter-lazzaro> |
 | @youyuanwu | 8 | <https://github.com/go-openapi/codegen/commits?author=youyuanwu> |
 | @mmorel-35 | 4 | <https://github.com/go-openapi/codegen/commits?author=mmorel-35> |
+| @orisano | 3 | <https://github.com/go-openapi/codegen/commits?author=orisano> |
 | @Copilot | 3 | <https://github.com/go-openapi/codegen/commits?author=Copilot> |
-| @EleanorRigby | 2 | <https://github.com/go-openapi/codegen/commits?author=EleanorRigby> |
+| @reinerRubin | 2 | <https://github.com/go-openapi/codegen/commits?author=reinerRubin> |
+| @n-inja | 2 | <https://github.com/go-openapi/codegen/commits?author=n-inja> |
 | @vincentvanderweele | 2 | <https://github.com/go-openapi/codegen/commits?author=vincentvanderweele> |
-| @kevinbarbour | 1 | <https://github.com/go-openapi/codegen/commits?author=kevinbarbour> |
-| @mraerino | 1 | <https://github.com/go-openapi/codegen/commits?author=mraerino> |
-| @nikolaiianchuk | 1 | <https://github.com/go-openapi/codegen/commits?author=nikolaiianchuk> |
-| @seiyab | 1 | <https://github.com/go-openapi/codegen/commits?author=seiyab> |
-| @vburenin | 1 | <https://github.com/go-openapi/codegen/commits?author=vburenin> |
-| @kenjones-cisco | 1 | <https://github.com/go-openapi/codegen/commits?author=kenjones-cisco> |
-| @dreamlover | 1 | <https://github.com/go-openapi/codegen/commits?author=dreamlover> |
+| @EleanorRigby | 2 | <https://github.com/go-openapi/codegen/commits?author=EleanorRigby> |
+| @diego-fu-hs | 2 | <https://github.com/go-openapi/codegen/commits?author=diego-fu-hs> |
 | @michaelf-stratoscale | 1 | <https://github.com/go-openapi/codegen/commits?author=michaelf-stratoscale> |
+| @dreamlover | 1 | <https://github.com/go-openapi/codegen/commits?author=dreamlover> |
+| @kenjones-cisco | 1 | <https://github.com/go-openapi/codegen/commits?author=kenjones-cisco> |
+| @griffin-stewie | 1 | <https://github.com/go-openapi/codegen/commits?author=griffin-stewie> |
+| @vburenin | 1 | <https://github.com/go-openapi/codegen/commits?author=vburenin> |
+| @seiyab | 1 | <https://github.com/go-openapi/codegen/commits?author=seiyab> |
+| @nikolaiianchuk | 1 | <https://github.com/go-openapi/codegen/commits?author=nikolaiianchuk> |
+| @mszczygiel | 1 | <https://github.com/go-openapi/codegen/commits?author=mszczygiel> |
+| @mraerino | 1 | <https://github.com/go-openapi/codegen/commits?author=mraerino> |
+| @kevinbarbour | 1 | <https://github.com/go-openapi/codegen/commits?author=kevinbarbour> |
+| @kzys | 1 | <https://github.com/go-openapi/codegen/commits?author=kzys> |
 | @ka2n | 1 | <https://github.com/go-openapi/codegen/commits?author=ka2n> |
 | @knweiss | 1 | <https://github.com/go-openapi/codegen/commits?author=knweiss> |
-| @diego-fu-hs | 1 | <https://github.com/go-openapi/codegen/commits?author=diego-fu-hs> |
 | @dnephin | 1 | <https://github.com/go-openapi/codegen/commits?author=dnephin> |
+| @Xe | 1 | <https://github.com/go-openapi/codegen/commits?author=Xe> |
 | @iamtheddrman | 1 | <https://github.com/go-openapi/codegen/commits?author=iamtheddrman> |
 | @elakito | 1 | <https://github.com/go-openapi/codegen/commits?author=elakito> |
 | @armsnyder | 1 | <https://github.com/go-openapi/codegen/commits?author=armsnyder> |
