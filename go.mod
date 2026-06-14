@@ -11,7 +11,7 @@ require (
 	github.com/go-openapi/swag/stringutils v0.26.0
 	github.com/go-openapi/testify/v2 v2.5.1
 	github.com/kr/pretty v0.3.1
-	golang.org/x/tools v0.45.0
+	golang.org/x/tools v0.46.0
 )
 
 replace github.com/go-openapi/codegen/mangling => ./mangling
@@ -39,10 +39,10 @@ require (
 	github.com/rogpeppe/go-internal v1.15.0 // indirect
 	github.com/shopspring/decimal v1.4.0 // indirect
 	github.com/spf13/cast v1.10.0 // indirect
-	golang.org/x/crypto v0.52.0 // indirect
-	golang.org/x/mod v0.36.0 // indirect
-	golang.org/x/net v0.55.0 // indirect
-	golang.org/x/sync v0.20.0 // indirect
-	golang.org/x/text v0.37.0 // indirect
+	golang.org/x/crypto v0.53.0 // indirect
+	golang.org/x/mod v0.37.0 // indirect
+	golang.org/x/net v0.56.0 // indirect
+	golang.org/x/sync v0.21.0 // indirect
+	golang.org/x/text v0.38.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 )
