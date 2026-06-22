@@ -21,6 +21,13 @@ Tools to generate and test golang code.
 * [Note to contributors](#note-to-contributors)
 * [Roadmap](#roadmap)
 
+## Announcements
+
+* **2026-06-22** : new community chat on discord
+  * a new discord community channel is available to be notified of changes and support users
+
+You may join the discord community by clicking the invite link on the discord badge (also above). [![Discord Channel][discord-badge]][discord-url]
+
 ## Status
 
 Work in progress.
