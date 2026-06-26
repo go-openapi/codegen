@@ -11,7 +11,7 @@ require (
 	github.com/go-openapi/swag/stringutils v0.26.1
 	github.com/go-openapi/testify/v2 v2.5.1
 	github.com/kr/pretty v0.3.1
-	golang.org/x/tools v0.46.0
+	golang.org/x/tools v0.47.0
 )
 
 replace github.com/go-openapi/codegen/mangling => ./mangling
