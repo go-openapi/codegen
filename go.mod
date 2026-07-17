@@ -6,7 +6,7 @@ require (
 	github.com/Masterminds/sprig/v3 v3.3.0
 	github.com/go-openapi/codegen/mangling v0.0.0
 	github.com/go-openapi/inflect v0.21.6
-	github.com/go-openapi/runtime v0.32.4
+	github.com/go-openapi/runtime v0.32.5
 	github.com/go-openapi/swag/conv v0.27.0
 	github.com/go-openapi/swag/stringutils v0.27.0
 	github.com/go-openapi/testify/v2 v2.6.0
@@ -22,7 +22,7 @@ require (
 	github.com/Masterminds/semver/v3 v3.5.0 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/go-openapi/errors v0.22.8 // indirect
-	github.com/go-openapi/strfmt v0.26.4 // indirect
+	github.com/go-openapi/strfmt v0.27.0 // indirect
 	github.com/go-openapi/swag/fileutils v0.27.0 // indirect
 	github.com/go-openapi/swag/jsonutils v0.27.0 // indirect
 	github.com/go-openapi/swag/pools v0.27.0 // indirect

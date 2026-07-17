@@ -11,8 +11,8 @@ github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc h1:U9qPSI2PIWSS1
 github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/frankban/quicktest v1.14.6 h1:7Xjx+VpznH+oBnejlPUj8oUpdxnVs4f8XU8WnHkI4W8=
 github.com/frankban/quicktest v1.14.6/go.mod h1:4ptaffx2x8+WTWXmUCuVU6aPUX1/Mz7zb5vbUoiM6w0=
-github.com/go-openapi/analysis v0.25.2 h1:I0vy4n3alz+DHTiN1PRhCb7QZxkK6g5YmswZKv2TKuw=
-github.com/go-openapi/analysis v0.25.2/go.mod h1:Uhs1t/2XR10EnwONYILGEzw8gcfGIG5Xk5K2AxnhqDo=
+github.com/go-openapi/analysis v0.25.3 h1:4zlcg85pd2xq3sEgjW887n1IpwCpCqTmqeT6dP9OxDw=
+github.com/go-openapi/analysis v0.25.3/go.mod h1:6PEmUIra9/rn6SPstzbrMkhFAsMB2qm7g6E+4DRFyCU=
 github.com/go-openapi/errors v0.22.8 h1:oP7sW7TWc3wFFjrzzj0nI83H2qMBkNjNfSd+XRejk/I=
 github.com/go-openapi/errors v0.22.8/go.mod h1:BuUoHcYrU6E7V9gfj1I5wLQqgtIHnup/alXZ8KdgQ0w=
 github.com/go-openapi/inflect v0.21.6 h1:0Se5BlyDT4hnV9JQQKA63W9TIUU6SC4hPJiY3qJOEzQ=
@@ -23,12 +23,12 @@ github.com/go-openapi/jsonreference v0.21.6 h1:NZ5nGfnaM1n4I43Xjm1e5/M2GjOwQwndQ
 github.com/go-openapi/jsonreference v0.21.6/go.mod h1:xzbgtQ3ZbWxvET3AxdzCJlJt6vkovbf+IfSPJjD0tUY=
 github.com/go-openapi/loads v0.24.0 h1:4LLorXRPTzIN9V6ngMUZbAscsBOUBk3Oa8cClu/bFrQ=
 github.com/go-openapi/loads v0.24.0/go.mod h1:xQMgX+hw5xRAhGrcDXxeMw78IFqUpIzhleu3HqPhyF4=
-github.com/go-openapi/runtime v0.32.4 h1:8ElGj/3goG0itt0nBPP6Cm57ehcYyuHoI3O20nxgvkw=
-github.com/go-openapi/runtime v0.32.4/go.mod h1:Bz6keOZw1NX4T6f+m42OoT1MBPDt6Re13dbccHyGH/4=
+github.com/go-openapi/runtime v0.32.5 h1:+aDmMj6xB4P8isUwEOERtgHW3JNI/i93KvTWNa4LRik=
+github.com/go-openapi/runtime v0.32.5/go.mod h1:eNPUCk8LAYV803GHJP3xDSNllJQfv+pBlXpFfWqpPO8=
 github.com/go-openapi/spec v0.22.6 h1:Tyy1pLaNCM8GBCFLoGYLonjJi6zykqyLCjXLc19ZPic=
 github.com/go-openapi/spec v0.22.6/go.mod h1:HZvTHat+iH0PALQRWhrqIHtU/PEqxqd89fu0MxGlMeM=
-github.com/go-openapi/strfmt v0.26.4 h1:yI6IAEfcWow459BD5UzFY430KUwXZwBHrYusPFkhWlc=
-github.com/go-openapi/strfmt v0.26.4/go.mod h1:hNJi6nb5ETD6i7A1yRo03M9S6ZoTPPoWff1iUexmfUc=
+github.com/go-openapi/strfmt v0.27.0 h1:kbcTeaD9TXuXD0hhMXzuYa1sdTo6+dWGvwjW93E80IM=
+github.com/go-openapi/strfmt v0.27.0/go.mod h1:s/qhDqfY72irigXUGJmtgid2Rm+3tnz3k8hZaRmvWYc=
 github.com/go-openapi/swag/conv v0.27.0 h1:EKOH4feXrvdo8DbSsXSAqRT8fz1epEnS5O2IfXUOzE8=
 github.com/go-openapi/swag/conv v0.27.0/go.mod h1:pfiv0uKQTbaGApk8Zs/lZV3uSjmSpa2FO1y183YngN8=
 github.com/go-openapi/swag/fileutils v0.27.0 h1:ib5jMUqGq5tY1EyO4inlrabsaeDAleFU+XD1FXQcgp8=
