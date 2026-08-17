@@ -9,9 +9,9 @@ require (
 	github.com/go-openapi/runtime v0.33.0
 	github.com/go-openapi/swag/conv v0.28.0
 	github.com/go-openapi/swag/stringutils v0.28.0
-	github.com/go-openapi/testify/v2 v2.6.0
+	github.com/go-openapi/testify/v2 v2.6.1
 	github.com/kr/pretty v0.3.1
-	golang.org/x/tools v0.48.0
+	golang.org/x/tools v0.49.0
 )
 
 replace github.com/go-openapi/codegen/mangling => ./mangling
@@ -36,13 +36,13 @@ require (
 	github.com/mitchellh/reflectwalk v1.0.2 // indirect
 	github.com/oklog/ulid/v2 v2.1.2 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
-	github.com/rogpeppe/go-internal v1.15.0 // indirect
+	github.com/rogpeppe/go-internal v1.16.0 // indirect
 	github.com/shopspring/decimal v1.4.0 // indirect
 	github.com/spf13/cast v1.10.0 // indirect
-	golang.org/x/crypto v0.54.0 // indirect
-	golang.org/x/mod v0.39.0 // indirect
-	golang.org/x/net v0.57.0 // indirect
+	golang.org/x/crypto v0.55.0 // indirect
+	golang.org/x/mod v0.40.0 // indirect
+	golang.org/x/net v0.58.0 // indirect
 	golang.org/x/sync v0.22.0 // indirect
-	golang.org/x/text v0.40.0 // indirect
+	golang.org/x/text v0.41.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 )
