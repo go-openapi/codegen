@@ -17,6 +17,9 @@ import (
 //
 // Rendering settings belong to the call rather than to the repository: how a document looks is the
 // business of whoever asks for it, and the template that lays it out is compiled when it is used.
+//
+// An option that cannot be honoured reports an error from [Dump], rather than at the point where it
+// is constructed.
 type (
 	DumpOption func(dumpOptions) dumpOptions
 
