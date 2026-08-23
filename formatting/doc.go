@@ -60,6 +60,12 @@
 // compile with "bytes redeclared in this block". A template assembling its imports from several
 // fragments hits this whenever two fragments contribute the same package.
 //
+// # Naming an import
+//
+// [ImportedPackageName] returns the identifier to qualify an import path with, version elements
+// dropped, so a generator can name an import it is about to write. Format settles the other question
+// — which name an existing import already binds — for itself.
+//
 // # Grouping
 //
 // Without [WithImportGroups] the output has two groups, the standard library and everything else.

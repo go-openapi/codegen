@@ -44,7 +44,7 @@ func TestPrune(t *testing.T) {
 
 		out := format2(t, source(t, "prune/unnameable"))
 
-		assert.Contains(t, out, `"example.com/my-pkg"`)
+		assert.Contains(t, out, `"example.com/2fa"`)
 	})
 
 	t.Run("should keep the cgo preamble", func(t *testing.T) {

@@ -6,9 +6,7 @@ package formatting
 import (
 	"go/ast"
 	"go/token"
-	"path"
 	"strconv"
-	"strings"
 
 	"golang.org/x/tools/go/ast/astutil"
 )
@@ -19,7 +17,7 @@ const cgoImport = "C"
 // prune deletes every import the file does not use.
 //
 // It never adds one, and it drops an import only when it can name the package the import declares.
-// See [importNames] for what happens when it cannot.
+// See [importedPackageNames] for what happens when it cannot.
 func prune(fset *token.FileSet, file *ast.File) {
 	used := usedQualifiers(file)
 
@@ -62,7 +60,7 @@ func isUsed(spec *ast.ImportSpec, importPath string, used map[string]bool) bool 
 		}
 	}
 
-	names := importNames(importPath)
+	names := importedPackageNames(importPath)
 	if len(names) == 0 {
 		return true // cannot name the package, so cannot call it unused
 	}
@@ -102,70 +100,6 @@ func usedQualifiers(file *ast.File) map[string]bool {
 	})
 
 	return used
-}
-
-// importNames lists every name an import without an alias could declare.
-//
-// The package name is not in the import path, so it has to be guessed, and a single guess drops
-// imports that are in use: goimports reads "gopkg.in/yaml.v3" as yaml.v3 and misses yaml, while the
-// version-stripping guess reads "k8s.io/api/apps/v1" as apps and misses v1. Returning both leaves
-// the caller to keep the import if either name is used, and a surplus name only ever keeps an
-// import.
-//
-// An empty result means no candidate is a legal identifier — "example.com/my-pkg" — and the caller
-// keeps the import rather than delete one that may well be used.
-func importNames(importPath string) []string {
-	var names []string
-
-	add := func(candidate string) {
-		if !token.IsIdentifier(candidate) {
-			return
-		}
-		for _, seen := range names {
-			if seen == candidate {
-				return
-			}
-		}
-		names = append(names, candidate)
-	}
-
-	base := path.Base(importPath)
-
-	if token.IsIdentifier(base) {
-		add(base)
-
-		// a major version suffix names no package: "github.com/go-openapi/testify/v2" declares
-		// testify. The directory above it is the better guess, and base stays a candidate because
-		// "k8s.io/api/apps/v1" really does declare v1.
-		if isMajorVersion(base) {
-			if dir := path.Dir(importPath); dir != "." {
-				add(path.Base(dir))
-			}
-		}
-
-		return names
-	}
-
-	// "gopkg.in/yaml.v3" declares yaml
-	if dot := strings.IndexByte(base, '.'); dot >= 0 {
-		add(base[:dot])
-	}
-
-	// "github.com/jessevdk/go-flags" declares flags
-	add(strings.TrimPrefix(base, "go-"))
-
-	return names
-}
-
-// isMajorVersion reports whether a path element is a module major version, as in v2 or v3.
-func isMajorVersion(element string) bool {
-	if len(element) < 2 || element[0] != 'v' {
-		return false
-	}
-
-	_, err := strconv.Atoi(element[1:])
-
-	return err == nil
 }
 
 // needsResolution reports whether telling a package qualifier from a shadowed name needs the
@@ -224,8 +158,8 @@ func needsResolution(file *ast.File) bool {
 
 // importedNames returns every name the file's imports could declare.
 //
-// An alias declares its name outright. Without one the package name is guessed, and [importNames]
-// returns every guess, so a name that could belong to an import is in the set.
+// An alias declares its name outright. Without one the package name is guessed, and
+// [importedPackageNames] returns every guess, so a name that could belong to an import is in the set.
 func importedNames(file *ast.File) map[string]struct{} {
 	names := make(map[string]struct{}, len(file.Imports))
 
@@ -243,7 +177,7 @@ func importedNames(file *ast.File) map[string]struct{} {
 			continue
 		}
 
-		for _, name := range importNames(importPath) {
+		for _, name := range importedPackageNames(importPath) {
 			names[name] = struct{}{}
 		}
 	}
