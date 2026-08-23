@@ -112,9 +112,9 @@ func Clone(source *Repository, opts ...Option) (*Repository, error) {
 		return nil, fmt.Errorf("cannot clone a nil repository: %w", ErrTemplateRepo)
 	}
 
-	settings := source.settings.derive()
-	if err := settings.apply(opts); err != nil {
-		return nil, err
+	settings := source.settings.derive().apply(opts)
+	if settings.err != nil {
+		return nil, settings.err
 	}
 
 	added, layers, err := settings.resolveSources(source.layers)
