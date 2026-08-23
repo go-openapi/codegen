@@ -34,7 +34,7 @@ const maxTidyOutput = 4096
 //
 // What the command wrote is reported when it fails; pass [WithTidyOutput] to watch it as it runs.
 func (g *GoGenApp) TidyModule(ctx context.Context, opts ...TidyOption) error {
-	o, err := tidyOptionsWithDefaults(opts)
+	o, err := applyTidyWithDefaults(opts)
 	if err != nil {
 		return err
 	}

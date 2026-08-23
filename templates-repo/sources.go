@@ -47,18 +47,18 @@ type source func(options) ([]asset, error)
 //		fileutils.MustSub(assets, "templates/contrib/mine"),
 //	), ""))
 func FromFS(fsys fs.FS, mountPoint string, opts ...SourceOption) Option {
-	return func(o *options) error {
+	return func(o options) options {
 		mount, err := cleanMountPoint(mountPoint)
 		if err != nil {
-			return err
+			return o.withError(err)
 		}
 
 		reading, err := makeSourceOptions(opts)
 		if err != nil {
-			return err
+			return o.withError(err)
 		}
 
-		o.sources = append(o.sources, func(settings options) ([]asset, error) {
+		o.sources = append(slices.Clip(o.sources), func(settings options) ([]asset, error) {
 			if fsys == nil {
 				return nil, fmt.Errorf("cannot read templates from a nil fs.FS: %w", ErrTemplateRepo)
 			}
@@ -66,7 +66,7 @@ func FromFS(fsys fs.FS, mountPoint string, opts ...SourceOption) Option {
 			return readFS(fsys, reading.mount(mount), reading.skipDirectories, settings)
 		})
 
-		return nil
+		return o
 	}
 }
 
@@ -87,7 +87,7 @@ func FromFS(fsys fs.FS, mountPoint string, opts ...SourceOption) Option {
 //		)
 //	}
 func Sources(opts ...Option) Option {
-	return func(o *options) error {
+	return func(o options) options {
 		return o.apply(opts)
 	}
 }
@@ -97,12 +97,22 @@ func Sources(opts ...Option) Option {
 // Which directories to skip describes the file system being walked, not the repository. Skipping a
 // directory of the assets one source ships leaves a directory of the same name fully readable in
 // a template set someone else brings.
-type SourceOption func(*sourceOptions) error
+type SourceOption func(sourceOptions) sourceOptions
 
 // sourceOptions holds the settings of a single source.
 type sourceOptions struct {
 	skipDirectories []string
 	rebase          string
+	err             error
+}
+
+// withError keeps the first failure and lets the rest of the chain run.
+func (o sourceOptions) withError(err error) sourceOptions {
+	if o.err == nil {
+		o.err = err
+	}
+
+	return o
 }
 
 // Rebased mounts a source under a base, on top of wherever it already mounts.
@@ -123,15 +133,15 @@ type sourceOptions struct {
 //		genclient.Sources(repo.Rebased("client")),
 //	)
 func Rebased(base string) SourceOption {
-	return func(o *sourceOptions) error {
+	return func(o sourceOptions) sourceOptions {
 		under, err := cleanMountPoint(base)
 		if err != nil {
-			return err
+			return o.withError(err)
 		}
 
 		o.rebase = path.Join(o.rebase, under)
 
-		return nil
+		return o
 	}
 }
 
@@ -149,9 +159,11 @@ func makeSourceOptions(opts []SourceOption) (sourceOptions, error) {
 			continue
 		}
 
-		if err := option(&o); err != nil {
-			return sourceOptions{}, err
-		}
+		o = option(o)
+	}
+
+	if o.err != nil {
+		return sourceOptions{}, o.err
 	}
 
 	return o, nil
@@ -168,10 +180,10 @@ func makeSourceOptions(opts []SourceOption) (sourceOptions, error) {
 //	// the assets shipped, leaving the alternate sets to be stacked explicitly
 //	repo.FromFS(assets, "", repo.SkipDirectories("contrib"))
 func SkipDirectories(names ...string) SourceOption {
-	return func(o *sourceOptions) error {
+	return func(o sourceOptions) sourceOptions {
 		o.skipDirectories = append(o.skipDirectories, names...)
 
-		return nil
+		return o
 	}
 }
 
@@ -184,18 +196,18 @@ func SkipDirectories(names ...string) SourceOption {
 // The directory is read once, when the repository is built. Editing a template on disk
 // afterwards has no effect until a repository is built again.
 func FromDir(dir, mountPoint string, opts ...SourceOption) Option {
-	return func(o *options) error {
+	return func(o options) options {
 		mount, err := cleanMountPoint(mountPoint)
 		if err != nil {
-			return err
+			return o.withError(err)
 		}
 
 		reading, err := makeSourceOptions(opts)
 		if err != nil {
-			return err
+			return o.withError(err)
 		}
 
-		o.sources = append(o.sources, func(settings options) ([]asset, error) {
+		o.sources = append(slices.Clip(o.sources), func(settings options) ([]asset, error) {
 			info, err := os.Stat(dir)
 			if err != nil {
 				return nil, fmt.Errorf("cannot read templates from %q: %w: %w", dir, err, ErrTemplateRepo)
@@ -208,7 +220,7 @@ func FromDir(dir, mountPoint string, opts ...SourceOption) Option {
 			return readFS(os.DirFS(dir), reading.mount(mount), reading.skipDirectories, settings)
 		})
 
-		return nil
+		return o
 	}
 }
 
@@ -235,20 +247,20 @@ func FromDir(dir, mountPoint string, opts ...SourceOption) Option {
 //		repo.FromRepository(serverTemplates, "server"),
 //	)
 func FromRepository(source *Repository, mountPoint string, opts ...SourceOption) Option {
-	return func(o *options) error {
+	return func(o options) options {
 		mount, err := cleanMountPoint(mountPoint)
 		if err != nil {
-			return err
+			return o.withError(err)
 		}
 
 		reading, err := makeSourceOptions(opts)
 		if err != nil {
-			return err
+			return o.withError(err)
 		}
 
 		mount = reading.mount(mount)
 
-		o.sources = append(o.sources, func(options) ([]asset, error) {
+		o.sources = append(slices.Clip(o.sources), func(options) ([]asset, error) {
 			if source == nil {
 				return nil, fmt.Errorf("cannot read templates from a nil repository: %w", ErrTemplateRepo)
 			}
@@ -262,7 +274,7 @@ func FromRepository(source *Repository, mountPoint string, opts ...SourceOption)
 			return read, nil
 		})
 
-		return nil
+		return o
 	}
 }
 
@@ -280,24 +292,24 @@ func FromRepository(source *Repository, mountPoint string, opts ...SourceOption)
 //
 // The content is retained, not copied.
 func FromTemplate(name string, content []byte, opts ...SourceOption) Option {
-	return func(o *options) error {
+	return func(o options) options {
 		clean, err := cleanAssetName(name)
 		if err != nil {
-			return err
+			return o.withError(err)
 		}
 
 		reading, err := makeSourceOptions(opts)
 		if err != nil {
-			return err
+			return o.withError(err)
 		}
 
 		clean = reading.mount(clean)
 
-		o.sources = append(o.sources, func(options) ([]asset, error) {
+		o.sources = append(slices.Clip(o.sources), func(options) ([]asset, error) {
 			return []asset{{path: clean, data: content}}, nil
 		})
 
-		return nil
+		return o
 	}
 }
 

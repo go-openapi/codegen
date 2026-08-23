@@ -17,11 +17,46 @@ import (
 //
 // Rendering settings belong to the call rather than to the repository: how a document looks is the
 // business of whoever asks for it, and the template that lays it out is compiled when it is used.
-type DumpOption func(*dumpOptions) error
+//
+// An option that cannot be honoured reports an error from [Dump], rather than at the point where it
+// is constructed.
+type (
+	DumpOption func(dumpOptions) dumpOptions
 
-type dumpOptions struct {
-	layout string
-	funcs  template.FuncMap
+	dumpOptions struct {
+		layout string
+		funcs  template.FuncMap
+		err    error
+	}
+)
+
+// withError keeps the first failure and lets the rest of the chain run.
+func (o dumpOptions) withError(err error) dumpOptions {
+	if o.err == nil {
+		o.err = err
+	}
+
+	return o
+}
+
+// applyDumpWithDefaults folds the chain over the defaults, left to right.
+//
+// The defaults are built afresh on every call, so no two dumps share the funcmap.
+func applyDumpWithDefaults(opts []DumpOption) (dumpOptions, error) {
+	o := dumpOptions{
+		layout: markdownLayout,
+		funcs:  template.FuncMap{"anchor": anchor, "weigh": weigh, "plural": plural},
+	}
+
+	for _, apply := range opts {
+		o = apply(o)
+	}
+
+	if o.err != nil {
+		return dumpOptions{}, o.err
+	}
+
+	return o, nil
 }
 
 // WithTemplate lays the document out with a template of the caller's own.
@@ -29,23 +64,23 @@ type dumpOptions struct {
 // The template is executed against a [Documentation]. It is compiled when [Repository.Dump] runs,
 // so a template that does not parse is reported by that call.
 func WithTemplate(text string) DumpOption {
-	return func(o *dumpOptions) error {
+	return func(o dumpOptions) dumpOptions {
 		if strings.TrimSpace(text) == "" {
-			return fmt.Errorf("the dump template is empty: %w", ErrReport)
+			return o.withError(fmt.Errorf("the dump template is empty: %w", ErrReport))
 		}
 
 		o.layout = text
 
-		return nil
+		return o
 	}
 }
 
 // WithFuncMap adds functions a dump template of the caller's own may call.
 func WithFuncMap(funcs template.FuncMap) DumpOption {
-	return func(o *dumpOptions) error {
+	return func(o dumpOptions) dumpOptions {
 		maps.Copy(o.funcs, funcs)
 
-		return nil
+		return o
 	}
 }
 
@@ -63,14 +98,9 @@ func WithFuncMap(funcs template.FuncMap) DumpOption {
 //
 //	err = reports.Dump(w, documentation)
 func Dump(w io.Writer, documentation Documentation, opts ...DumpOption) error {
-	settings := dumpOptions{
-		layout: markdownLayout,
-		funcs:  template.FuncMap{"anchor": anchor, "weigh": weigh, "plural": plural},
-	}
-	for _, apply := range opts {
-		if err := apply(&settings); err != nil {
-			return err
-		}
+	settings, err := applyDumpWithDefaults(opts)
+	if err != nil {
+		return err
 	}
 
 	layout, err := template.New("dump").Funcs(settings.funcs).Parse(settings.layout)

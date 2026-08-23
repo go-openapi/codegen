@@ -37,7 +37,7 @@ type GoGenApp struct {
 // [github.com/go-openapi/codegen/templates-repo.New], and a repository that would not build has
 // already reported why by the time it reaches here.
 func New(opts ...Option) (*GoGenApp, error) {
-	o := optionsWithDefaults(opts)
+	o := applyWithDefaults(opts)
 
 	if o.templates == nil {
 		return nil, fmt.Errorf("a templates repository is required, see WithTemplates: %w", ErrGenApp)

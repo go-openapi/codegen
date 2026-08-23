@@ -11,43 +11,51 @@ import (
 	"golang.org/x/mod/modfile"
 )
 
-// TidyOption configures [GoGenApp.TidyModule].
-type TidyOption func(*tidyOptions)
+type (
+	// TidyOption configures [GoGenApp.TidyModule].
+	TidyOption func(tidyOptions) tidyOptions
 
-type tidyOptions struct {
-	goCommand string
-	goVersion string
-	compat    string
-	output    io.Writer
-	env       []string
-	workspace bool
-	waitDelay time.Duration
-}
+	tidyOptions struct {
+		goCommand string
+		goVersion string
+		compat    string
+		output    io.Writer
+		env       []string
+		workspace bool
+		waitDelay time.Duration
+	}
+)
 
 // WithGoCommand names the go binary to run. It defaults to "go", found on PATH.
 //
 // Pass an absolute path to run a toolchain the PATH does not point at.
 func WithGoCommand(command string) TidyOption {
-	return func(o *tidyOptions) {
+	return func(o tidyOptions) tidyOptions {
 		if command != "" {
 			o.goCommand = command
 		}
+
+		return o
 	}
 }
 
 // WithTidyGoVersion passes -go to the command, as in "1.25.0", which sets the go directive while
 // tidying.
 func WithTidyGoVersion(version string) TidyOption {
-	return func(o *tidyOptions) {
+	return func(o tidyOptions) tidyOptions {
 		o.goVersion = version
+
+		return o
 	}
 }
 
 // WithTidyCompat passes -compat to the command, as in "1.24", which keeps the checksums an older
 // go needs to load the module.
 func WithTidyCompat(version string) TidyOption {
-	return func(o *tidyOptions) {
+	return func(o tidyOptions) tidyOptions {
 		o.compat = version
+
+		return o
 	}
 }
 
@@ -56,8 +64,10 @@ func WithTidyCompat(version string) TidyOption {
 // The output is kept either way and reported when the command fails. Pass a writer to watch a tidy
 // that takes a while, since it downloads what the module requires.
 func WithTidyOutput(w io.Writer) TidyOption {
-	return func(o *tidyOptions) {
+	return func(o tidyOptions) tidyOptions {
 		o.output = w
+
+		return o
 	}
 }
 
@@ -67,8 +77,10 @@ func WithTidyOutput(w io.Writer) TidyOption {
 // one. Tidying reaches the module proxy and the checksum database, and a generated module often
 // wants different settings for those than the generator itself.
 func WithTidyEnv(vars ...string) TidyOption {
-	return func(o *tidyOptions) {
+	return func(o tidyOptions) tidyOptions {
 		o.env = append(o.env, vars...)
+
+		return o
 	}
 }
 
@@ -78,26 +90,30 @@ func WithTidyEnv(vars ...string) TidyOption {
 // not list it makes the go command refuse to work in it, so [GoGenApp.TidyModule] runs with GOWORK
 // off. Turn this on for a module the surrounding workspace is meant to cover.
 func WithWorkspace(enabled bool) TidyOption {
-	return func(o *tidyOptions) {
+	return func(o tidyOptions) tidyOptions {
 		o.workspace = enabled
+
+		return o
 	}
 }
 
 // WithTidyWaitDelay bounds how long the command may hold the output pipes open after its context is
 // done, before it is killed. It defaults to five seconds.
 func WithTidyWaitDelay(delay time.Duration) TidyOption {
-	return func(o *tidyOptions) {
+	return func(o tidyOptions) tidyOptions {
 		o.waitDelay = delay
+
+		return o
 	}
 }
 
-func tidyOptionsWithDefaults(opts []TidyOption) (tidyOptions, error) {
+func applyTidyWithDefaults(opts []TidyOption) (tidyOptions, error) {
 	const defaultWaitDelay = 5 * time.Second
 
 	o := tidyOptions{goCommand: "go", waitDelay: defaultWaitDelay}
 
 	for _, apply := range opts {
-		apply(&o)
+		o = apply(o)
 	}
 
 	for _, version := range [...]struct{ flag, value string }{

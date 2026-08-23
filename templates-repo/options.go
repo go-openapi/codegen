@@ -23,16 +23,33 @@ import (
 // order: [FromFS], [FromDir] and [FromTemplate]. Settings shape how they are read, whatever the
 // order: [WithFuncMap], [WithExtensions], [WithRoots], [WithExtraRoots] and [WithCoverage].
 // How one source is read is settled where it is declared, with a [SourceOption].
-type Option func(*options) error
+type (
+	Option func(options) options
 
-// options holds the settings of a repository, and the sources it is yet to read.
-type options struct {
-	sources     []source
-	funcs       template.FuncMap
-	extensions  []string
-	roots       []string
-	coverPrefix string
-	coverage    bool
+	// options holds the settings of a repository, the sources it is yet to read, and the first
+	// option that rejected its arguments.
+	options struct {
+		sources     []source
+		funcs       template.FuncMap
+		extensions  []string
+		roots       []string
+		coverPrefix string
+		err         error
+		coverage    bool
+	}
+)
+
+// withError keeps the first failure and lets the rest of the chain run.
+//
+// An option reports a bad argument here rather than from its own constructor, so [New] and [Clone]
+// are where a caller sees it - which is where every other reason a repository fails to build shows
+// up too.
+func (o options) withError(err error) options {
+	if o.err == nil {
+		o.err = err
+	}
+
+	return o
 }
 
 // makeOptions applies opts on top of the defaults.
@@ -45,26 +62,25 @@ func makeOptions(opts []Option) (options, error) {
 		extensions: []string{DefaultExtension},
 	}
 
-	if err := o.apply(opts); err != nil {
-		return options{}, err
+	o = o.apply(opts)
+	if o.err != nil {
+		return options{}, o.err
 	}
 
 	return o, nil
 }
 
-// apply runs a list of options over these settings.
-func (o *options) apply(opts []Option) error {
+// apply folds a list of options over these settings, left to right.
+func (o options) apply(opts []Option) options {
 	for _, option := range opts {
 		if option == nil {
 			continue
 		}
 
-		if err := option(o); err != nil {
-			return err
-		}
+		o = option(o)
 	}
 
-	return nil
+	return o
 }
 
 // derive copies the settings of a repository for a [Clone], with no source left to read.
@@ -91,10 +107,10 @@ func (o options) derive() options {
 // Adding a function to an existing repository is [Clone] with this option: the clone re-parses
 // its templates, so the new function reaches all of them.
 func WithFuncMap(funcs template.FuncMap) Option {
-	return func(o *options) error {
+	return func(o options) options {
 		maps.Copy(o.funcs, funcs)
 
-		return nil
+		return o
 	}
 }
 
@@ -106,14 +122,14 @@ func WithFuncMap(funcs template.FuncMap) Option {
 // The extension is trimmed from the asset path before its name is derived, so
 // "validation/primitive.gotmpl" is named validationPrimitive.
 func WithExtensions(extensions ...string) Option {
-	return func(o *options) error {
+	return func(o options) options {
 		if len(extensions) == 0 {
-			return fmt.Errorf("at least one extension is required: %w", ErrTemplateRepo)
+			return o.withError(fmt.Errorf("at least one extension is required: %w", ErrTemplateRepo))
 		}
 
 		o.extensions = slices.Clone(extensions)
 
-		return nil
+		return o
 	}
 }
 
@@ -145,15 +161,15 @@ func WithExtensions(extensions ...string) Option {
 //	// the templates a client generation executes, and nothing else
 //	client, err := repo.Clone(repository, repo.WithRoots("clientClient", "clientParameter", "model"))
 func WithRoots(names ...string) Option {
-	return func(o *options) error {
+	return func(o options) options {
 		scope, err := scopeOf(names)
 		if err != nil {
-			return err
+			return o.withError(err)
 		}
 
 		o.roots = scope
 
-		return nil
+		return o
 	}
 }
 
@@ -171,23 +187,27 @@ func WithRoots(names ...string) Option {
 //	// one more template, reachable whether or not the repository is scoped
 //	mine, err := repo.Clone(repository, repo.FromTemplate("mine", body), repo.WithExtraRoots("mine"))
 func WithExtraRoots(names ...string) Option {
-	return func(o *options) error {
+	return func(o options) options {
 		scope, err := scopeOf(names)
 		if err != nil {
-			return err
+			return o.withError(err)
 		}
 
 		if len(o.roots) == 0 {
-			return nil // every template is kept already, these among them
+			return o // every template is kept already, these among them
 		}
 
+		widened := slices.Clone(o.roots)
+
 		for _, name := range scope {
-			if !slices.Contains(o.roots, name) {
-				o.roots = append(o.roots, name)
+			if !slices.Contains(widened, name) {
+				widened = append(widened, name)
 			}
 		}
 
-		return nil
+		o.roots = widened
+
+		return o
 	}
 }
 
@@ -225,14 +245,16 @@ func scopeOf(names []string) ([]string, error) {
 //
 //	repo.WithCoverage("github.com/go-swagger/go-swagger/generator/templates")
 func WithCoverage(prefix string) Option {
-	return func(o *options) error {
+	return func(o options) options {
 		if strings.TrimSpace(prefix) == "" {
-			return fmt.Errorf("coverage needs the import path the templates live under: %w", ErrTemplateRepo)
+			return o.withError(
+				fmt.Errorf("coverage needs the import path the templates live under: %w", ErrTemplateRepo),
+			)
 		}
 
 		o.coverage = true
 		o.coverPrefix = strings.TrimSuffix(prefix, "/") + "/"
 
-		return nil
+		return o
 	}
 }

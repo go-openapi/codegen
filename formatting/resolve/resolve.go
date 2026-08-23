@@ -26,14 +26,16 @@ const (
 	ErrUnresolved Error = "some import paths did not resolve"
 )
 
-// Option configures [Names].
-type Option func(*options)
+type (
+	// Option configures [Names].
+	Option func(options) options
 
-type options struct {
-	dir        string
-	env        []string
-	buildFlags []string
-}
+	options struct {
+		dir        string
+		env        []string
+		buildFlags []string
+	}
+)
 
 // WithDir loads the packages as if from dir.
 //
@@ -41,8 +43,10 @@ type options struct {
 // it the current working directory is used, which is right only when the process already runs inside
 // that module.
 func WithDir(dir string) Option {
-	return func(o *options) {
+	return func(o options) options {
 		o.dir = dir
+
+		return o
 	}
 }
 
@@ -50,15 +54,19 @@ func WithDir(dir string) Option {
 //
 // Use it to pin GOFLAGS, GOPATH or GOMODCACHE. An empty slice leaves the process environment alone.
 func WithEnv(env []string) Option {
-	return func(o *options) {
+	return func(o options) options {
 		o.env = slices.Clone(env)
+
+		return o
 	}
 }
 
 // WithBuildFlags passes flags to "go list", as in -tags or -mod=mod.
 func WithBuildFlags(flags ...string) Option {
-	return func(o *options) {
+	return func(o options) options {
 		o.buildFlags = append(o.buildFlags, flags...)
+
+		return o
 	}
 }
 
@@ -85,10 +93,7 @@ func Names(ctx context.Context, paths []string, opts ...Option) (map[string]stri
 		return map[string]string{}, nil
 	}
 
-	var o options
-	for _, apply := range opts {
-		apply(&o)
-	}
+	o := applyWithDefaults(opts)
 
 	loaded, err := packages.Load(&packages.Config{
 		Context:    ctx,
@@ -171,4 +176,18 @@ func missingFrom(wanted []string, names, reasons map[string]string) []string {
 // oneLine flattens a go list message, which wraps its "to add it" hint onto a second line.
 func oneLine(message string) string {
 	return strings.Join(strings.Fields(message), " ")
+}
+
+// applyWithDefaults folds the chain over the zero options, left to right.
+//
+// The zero value is the default: go list runs in the working directory, with the process environment
+// and no build flags.
+func applyWithDefaults(opts []Option) options {
+	var o options
+
+	for _, apply := range opts {
+		o = apply(o)
+	}
+
+	return o
 }
