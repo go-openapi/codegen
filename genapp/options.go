@@ -76,7 +76,7 @@ func WithFormatOptions(opts ...formatting.Option) Option {
 //		}
 //	})
 //
-// Read the names of the paths it lists once, then pass them through
+// Resolve the paths it lists once, then pass the names through
 // [formatting.WithResolvedImports] with [WithFormatOptions].
 func WithImportsReporter(report func(template string, report *formatting.ImportsReport)) Option {
 	return func(o *options) {

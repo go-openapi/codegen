@@ -98,8 +98,9 @@ func (r ImportRecord) String() string {
 // see the imports behind an [ErrInconsistentImports].
 //
 // The report is the input to the resolving loop: format once, ask [ImportsReport.HasImportsInDoubt],
-// read the names of [ImportsReport.PathsInDoubt] from the packages themselves, and format again with
-// [WithResolvedImports] until nothing is left in doubt.
+// resolve [ImportsReport.PathsInDoubt] with
+// github.com/go-openapi/codegen/formatting/resolve, and format again with [WithResolvedImports] until
+// nothing is left in doubt.
 type ImportsReport struct {
 	records []ImportRecord
 }

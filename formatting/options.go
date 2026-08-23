@@ -75,8 +75,9 @@ func WithForceImportsPruning() Option {
 //
 // It combines with [WithForceImportsPruning], which settles every path the map leaves out.
 //
-// The map is read, not kept: pass the same map to as many concurrent calls as you like. Its answers
-// come from the packages rather than from the machine, so one map serves every build.
+// The map is read, not kept: pass the same map to as many concurrent calls as you like. Build it with
+// github.com/go-openapi/codegen/formatting/resolve, which answers from the packages themselves rather
+// than from the machine, so one map serves every build.
 func WithResolvedImports(names map[string]string) Option {
 	return func(o *options) {
 		if len(names) == 0 {
