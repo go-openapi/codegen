@@ -7,10 +7,11 @@ package formatting
 type Option func(*options)
 
 type options struct {
-	groups       []string
-	goFumpt      bool
-	forcePruning bool
-	resolved     map[string]string
+	groups          []string
+	goFumpt         bool
+	forcePruning    bool
+	simplifyAliases bool
+	resolved        map[string]string
 }
 
 // WithImportGroups adds one import group per prefix, between the standard library and the rest.
@@ -91,6 +92,28 @@ func WithResolvedImports(names map[string]string) Option {
 		for importPath, name := range names {
 			o.resolved[importPath] = name
 		}
+	}
+}
+
+// WithSimplifiedImportAliases drops an alias that repeats the name its package declares.
+//
+//	import fmt "fmt"                              ->  import "fmt"
+//	import strfmt "github.com/go-openapi/strfmt"  ->  import "github.com/go-openapi/strfmt"
+//
+// A template that writes the alias even where Go would leave it out gets exact pruning without
+// promising anything, because an alias states the name. This takes those aliases back out once the
+// name is proven, so the output reads as ordinary Go. The second line above needs
+// [WithResolvedImports] to name that package; the first is proven by the standard library table.
+//
+// An alias survives when dropping it would lose something. jsoniter "github.com/json-iterator/go"
+// keeps its alias even with the name proven, because the path does not say jsoniter and the bare
+// import would leave nothing that does. So does an alias that renames a package, as sql "database/sql
+// /driver", and so do _ and . imports.
+//
+// Nothing is dropped on a guess. Without evidence from the table or the map, every alias stays.
+func WithSimplifiedImportAliases() Option {
+	return func(o *options) {
+		o.simplifyAliases = true
 	}
 }
 

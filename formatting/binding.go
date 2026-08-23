@@ -195,3 +195,39 @@ func (b binding) status(used map[string]bool) ImportStatus {
 
 	return ImportInDoubt
 }
+
+// redundantAlias reports whether this import's alias repeats what the path already says.
+//
+// Two things have to hold. The alias must match the name the package declares, which only the
+// standard library table or [WithResolvedImports] can state - dropping an alias on a guess breaks the
+// build the moment the guess is wrong. And that name must be the one [ImportedPackageName] gives, so
+// the bare import left behind still says what it binds.
+//
+// The second test is why jsoniter "github.com/json-iterator/go" keeps its alias even when the map
+// proves the name. Dropping it would compile, and would throw away the only thing in the file that
+// says which package that is.
+func (b binding) redundantAlias() bool {
+	if b.kind != kindNamed || b.alias == "" || b.pruned {
+		return false
+	}
+
+	if b.proven == "" || b.alias != b.proven {
+		return false
+	}
+
+	return b.proven == ImportedPackageName(b.path)
+}
+
+// simplifyAliases drops every alias that repeats the name the package declares.
+func simplifyAliases(bindings []binding) {
+	for i := range bindings {
+		described := &bindings[i]
+
+		if !described.redundantAlias() {
+			continue
+		}
+
+		described.spec.Name = nil
+		described.alias = ""
+	}
+}

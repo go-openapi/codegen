@@ -3,8 +3,8 @@
 
 // Package formatting formats generated Go source.
 //
-// [Format] parses the source, drops the imports nothing uses, sorts and groups the rest, and prints
-// the result to an [io.Writer]:
+// [Format] parses the source, drops the imports nothing uses, sorts and groups the rest, rejects the
+// ones that contradict each other, and prints the result to an [io.Writer]:
 //
 //	err := formatting.Format(file, rendered,
 //		formatting.WithImportGroups("github.com/go-openapi", baseImport),
@@ -41,6 +41,66 @@
 // cannot reproduce what a user reports. A template writes the imports its code needs, and code that
 // names a package it did not import fails to compile, which is a better answer than a guess.
 //
+// # What pruning can know
+//
+// The identifier an import binds is the imported package's own package clause, and the path only says
+// where to find it. "github.com/json-iterator/go" declares jsoniter,
+// "github.com/prometheus/client_model/go" declares io_prometheus_client, and reading either name
+// means loading the package. So Format deletes an import only when it knows the name, from one of
+// three places:
+//
+//   - an alias, which states the name in the source;
+//   - the standard library, held in a generated table built from "go list std";
+//   - [WithResolvedImports], where the caller states the name.
+//
+// A bare third-party import is a guess. A guess keeps an import when one of the names it could
+// declare appears as a qualifier, and never deletes one, so this survives:
+//
+//	import "github.com/go-openapi/strfmt"   // nothing writes strfmt., and the import stays
+//
+// Two ways to get it deleted. [WithForceImportsPruning] promises every bare import declares the name
+// [ImportedPackageName] gives. [WithResolvedImports] states the awkward names instead of promising
+// there are none, and a map built once serves every build.
+//
+// A third way costs no option at all: write the alias even where it repeats the package name.
+//
+//	import strfmt "github.com/go-openapi/strfmt"   // the binding is certain, so the import is pruned
+//
+// gofmt leaves that alone, and only revive's redundant-import-alias rule reports it, which is off by
+// default. A generator holding either the promise or the map needs it only for the packages that
+// break the convention, where the alias is not redundant and writing it is ordinary Go.
+//
+// [WithSimplifiedImportAliases] takes such an alias back out once the name is proven, so a template
+// may write every alias for safety and hand the reader ordinary Go. It drops nothing on a guess, and
+// nothing whose alias the path cannot replace.
+//
+// A blank import runs an init and binds no qualifier, so it is never pruned. A dot import spills its
+// names into the file scope and no qualifier ever appears, so nothing about it can be checked: use
+// goimports on a file that relies on them.
+//
+// # The imports report
+//
+// Format returns an [ImportsReport] beside its error, holding one [ImportRecord] per import: the
+// path, the name it binds, whether that name was stated or guessed, and what became of it.
+//
+//	report, err := formatting.Format(out, rendered)
+//	if err != nil {
+//		return err
+//	}
+//
+//	if report.HasImportsInDoubt() {
+//		log.Printf("could not name: %v", report.PathsInDoubt())
+//	}
+//
+// A report with nothing in doubt means every import was decided, so the output holds no import the
+// file does not use. Anything in doubt is a path to resolve:
+// github.com/go-openapi/codegen/formatting/resolve reads the names from the packages themselves and
+// returns the map [WithResolvedImports] takes. Run it once, commit the map, and every build agrees.
+//
+// A clash between names Format knows is an error. A clash between guessed names may not be real —
+// either package may declare something the path does not show — so those imports come back as
+// [ImportCollision] and neither is pruned.
+//
 // # Duplicate imports
 //
 // The blank lines a template wrote inside its import block mean nothing to Format: it sorts the
@@ -60,11 +120,30 @@
 // compile with "bytes redeclared in this block". A template assembling its imports from several
 // fragments hits this whenever two fragments contribute the same package.
 //
+// # Inconsistent imports
+//
+// Two imports left after pruning may still contradict each other, and Format returns
+// [ErrInconsistentImports] rather than print a file the caller has to debug:
+//
+//   - one package under two names, as "bytes" beside b "bytes". The go compiler accepts it; the code
+//     reads as though b and bytes were different packages.
+//   - one name bound to two packages, as "crypto/rand" beside "math/rand" in a file writing
+//     rand.Read. The go compiler rejects it.
+//
+// A name is compared as the file writes it: an alias is the name it declares, and a bare import binds
+// whichever of its guessed names the file writes as a qualifier. So "crypto/rand" beside "math/rand"
+// passes when nothing writes rand. — pruning takes both — and "github.com/go-openapi/core" beside
+// "k8s.io/api/core/v1" passes when the file writes both core. and v1., because then the two bind
+// different names.
+//
+// One error names every mismatch, so a template with three bad imports is fixed in one pass. _ and .
+// bind no qualifier and are left alone, and so is an import whose package Format cannot name.
+//
 // # Naming an import
 //
 // [ImportedPackageName] returns the identifier to qualify an import path with, version elements
 // dropped, so a generator can name an import it is about to write. Format settles the other question
-// — which name an existing import already binds — for itself.
+// — which name an existing import already binds — for itself, and reports what it could not settle.
 //
 // # Grouping
 //

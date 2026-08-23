@@ -102,6 +102,11 @@ func format(w io.Writer, src []byte, opts ...Option) (*ImportsReport, error) {
 	}
 
 	bindings, used := prune(fset, file, o)
+
+	if o.simplifyAliases {
+		simplifyAliases(bindings)
+	}
+
 	mergeImports(file)
 	sortImports(fset.File(file.FileStart), file, o.groups)
 

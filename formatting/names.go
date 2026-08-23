@@ -38,8 +38,9 @@ func ImportedPackageName(importPath string) string {
 // importedPackageNames lists every name the package at importPath could already declare, guessed from
 // the path.
 //
-// [prune] keeps an import when the file writes any of these. It needs every candidate, because one
-// guess does not cover a version element: "k8s.io/api/apps/v1" declares v1, while
+// [prune] keeps an import when the file writes any of these, and [checkImports] reads which name an
+// import binds by matching them against the qualifiers the file writes. Both need every candidate,
+// because one guess does not cover a version element: "k8s.io/api/apps/v1" declares v1, while
 // "github.com/go-openapi/testify/v2" declares testify, and nothing in either path separates the two.
 //
 // A hyphen is the other awkward case, because no Go package name holds one. "example.com/my-pkg"
@@ -47,10 +48,10 @@ func ImportedPackageName(importPath string) string {
 // module cache. The rest are past guessing: "github.com/go-critic/go-critic" declares gorules.
 //
 // An empty result means no candidate is a legal Go identifier, as for "example.com/2fa". It means
-// "unknown", not "declares nothing", and [prune] then keeps the import.
+// "unknown", not "declares nothing", and [binding] then marks the import in doubt.
 //
-// This stays unexported: a caller naming an import wants [ImportedPackageName]. A list of guesses
-// answers no question a caller asks.
+// This stays unexported: a caller naming an import wants [ImportedPackageName], and a caller asking
+// what became of one wants [ImportsReport]. A list of guesses answers neither question on its own.
 //
 // golang.org/x/tools/internal/imports answers with ImportPathToAssumedName, which returns one name
 // and cuts the element at the first character an identifier may not hold, so it reads

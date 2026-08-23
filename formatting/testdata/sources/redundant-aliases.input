@@ -1,0 +1,17 @@
+package p
+
+import (
+	fmt "fmt"
+	sql "database/sql/driver"
+	strfmt "github.com/go-openapi/strfmt"
+	jsoniter "github.com/json-iterator/go"
+	_ "embed"
+	. "strings"
+)
+
+var (
+	_ = fmt.Sprint
+	_ sql.Valuer
+	_ = strfmt.Date{}
+	_ = jsoniter.Marshal
+)
