@@ -2,7 +2,8 @@ go 1.25.0
 
 use (
 	.
-	./genapp
+	./formatting/enable/gofumpt
+	./formatting/testdata/corpus
 	./mangling
 	./mangling/ucd
 )

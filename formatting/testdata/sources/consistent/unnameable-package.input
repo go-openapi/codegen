@@ -1,0 +1,9 @@
+package p
+
+import (
+	"example.com/2fa"
+
+	twofa "example.com/2fa"
+)
+
+var _ = twofa.Value

@@ -1,0 +1,12 @@
+package p
+
+import (
+	_ "embed"
+	. "strings"
+	"bytes"
+)
+
+var (
+	_ bytes.Buffer
+	_ = Title
+)

@@ -12,7 +12,7 @@ import (
 	"text/template/parse"
 )
 
-// declared is a template the repository holds, at the address it was declared under.
+// declared holds one template of the repository, together with the address declaring it.
 type declared struct {
 	// address is the path the template was declared at, never mangled.
 	//

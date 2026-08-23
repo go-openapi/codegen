@@ -14,9 +14,9 @@ import (
 
 // asset is a template file read from a source, held for as long as the repository lives.
 //
-// The path is the one the asset has once mounted, slash-separated and cleaned. The name of the
-// template is derived from it, so the path is retained rather than the name: a [Clone] that
-// changes the recognized extensions renames the templates accordingly.
+// The path is the asset's, once mounted, slash-separated and cleaned. The name of the template is
+// derived from it, so the path is retained rather than the name: a [Clone] that changes the
+// recognized extensions renames the templates accordingly.
 //
 // The layer records which source read the asset. Layers are numbered in the order the sources are
 // declared, and a [Clone] carries on where the repository it derives from left off, so two assets

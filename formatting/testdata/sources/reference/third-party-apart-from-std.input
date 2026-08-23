@@ -1,0 +1,13 @@
+package p
+
+import (
+	"context"
+	"github.com/go-openapi/swag/conv"
+	"bytes"
+)
+
+var (
+	_ = context.TODO
+	_ bytes.Buffer
+	_ = conv.Pointer[int]
+)

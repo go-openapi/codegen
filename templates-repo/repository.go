@@ -239,7 +239,7 @@ func (r *Repository) Roots() []string {
 
 // AssetOf returns the path of the asset that declares a name, and whether it is declared at all.
 //
-// The path is the one the asset has once mounted, and the name was derived from it.
+// The path is the asset's, once mounted, and the name was derived from it.
 func (r *Repository) AssetOf(name string) (string, bool) {
 	declared, found := r.declarations[name]
 

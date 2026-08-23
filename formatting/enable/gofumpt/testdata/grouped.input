@@ -1,0 +1,12 @@
+package p
+
+import (
+	"strings"
+	"github.com/go-openapi/swag/conv"
+	"context"
+)
+
+var (
+	_ = context.TODO
+	_ = conv.Pointer[int]
+)

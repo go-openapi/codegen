@@ -1,0 +1,5 @@
+package p
+
+import "bytes"
+
+var _ bytes.Buffer

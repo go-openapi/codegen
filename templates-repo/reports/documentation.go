@@ -24,7 +24,7 @@ type Asset struct {
 
 // Template is the documentation of a single template.
 type Template struct {
-	// Name is the name the template is registered under.
+	// Name is what [github.com/go-openapi/codegen/templates-repo.Repository.Get] answers to.
 	Name string
 
 	// Doc holds the comments documenting the template, one entry per comment.

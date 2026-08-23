@@ -1,0 +1,6 @@
+package p
+
+type T struct {
+	A int `json:"a"`
+	BB string `json:"bb"`
+}

@@ -1,0 +1,8 @@
+package p
+
+import "bytes"
+
+func shadowed() {
+	bytes := "not the package"
+	_ = bytes.Size
+}

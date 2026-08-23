@@ -1,185 +1,128 @@
 // SPDX-FileCopyrightText: Copyright 2015-2025 go-swagger maintainers
 // SPDX-License-Identifier: Apache-2.0
 
-// Package formatting provides the language-specific options used by the
-// go-swagger code generator. The primary type is [Options], which describes
-// formatting, naming, and import resolution rules for a target language.
 package formatting
 
-import (
-	"path/filepath"
+// Option configures [Format].
+type Option func(*options)
 
-	"golang.org/x/tools/imports"
+type options struct {
+	groups          []string
+	goFumpt         bool
+	forcePruning    bool
+	simplifyAliases bool
+	resolved        map[string]string
+}
 
-	"github.com/go-openapi/codegen/mangling"
-)
-
-// DefaultIndent is the default tab width used for Go source formatting.
-const DefaultIndent = 2
-
-// FormatterFunc is a function that processes go code to reformat it, e.g. [golang.org/x/tools/imports.Process]).
+// WithImportGroups adds one import group per prefix, between the standard library and the rest.
 //
-// Formatting options allow for injecting a custom formatter for the generated code. See [WithCustomFormatter].
-type FormatterFunc func(filename string, src []byte, opts ...FormatOption) ([]byte, error)
-
-// MangleFunc is a function that transforms a name string.
-type MangleFunc func(string) string
-
-// FormatOption allows for more flexible code formatting settings.
-type FormatOption func(*FormatOpts)
-
-// FormatOpts holds options for code formatting.
-type FormatOpts struct {
-	imports.Options
-
-	LocalPrefixes []string
-}
-
-// WithFormatLocalPrefixes adds local prefixes to group imports.
-func WithFormatLocalPrefixes(prefixes ...string) FormatOption {
-	return func(o *FormatOpts) {
-		o.LocalPrefixes = append(o.LocalPrefixes, prefixes...)
+// An import belongs to the first prefix it starts with, so pass the more specific prefix first.
+// Without this option the output has two groups: the standard library, then everything else.
+func WithImportGroups(prefixes ...string) Option {
+	return func(o *options) {
+		for _, prefix := range prefixes {
+			if prefix == "" {
+				continue
+			}
+			o.groups = append(o.groups, prefix)
+		}
 	}
 }
 
-// WithFormatOnly tells the formatter to skip imports processing.
-func WithFormatOnly(enabled bool) FormatOption {
-	return func(o *FormatOpts) {
-		o.FormatOnly = enabled
+// WithGoFumpt applies the gofumpt rules before printing.
+//
+// Blank-import github.com/go-openapi/codegen/formatting/enable/gofumpt to make the rules available.
+// Without it [Format] returns [ErrNoGoFumpt] rather than printing without them.
+func WithGoFumpt() Option {
+	return func(o *options) {
+		o.goFumpt = true
 	}
 }
 
-// DefaultFormatOpts is the default set of formatting options.
-var DefaultFormatOpts = FormatOpts{
-	Options: imports.Options{
-		TabIndent: true,
-		TabWidth:  DefaultIndent,
-		Fragment:  true,
-		Comments:  true,
-	},
-	LocalPrefixes: []string{"github.com/go-openapi"},
+// WithForceImportsPruning prunes an unused import even when its name was only guessed.
+//
+// Passing it is a promise: every import in the source either carries an alias, or declares the name
+// [ImportedPackageName] gives for its path — the last path element, with a /v2 or later suffix
+// dropped and the last segment taken from a hyphenated element. Idiomatic packages keep that promise.
+// "github.com/json-iterator/go" declares jsoniter and breaks it, and such an import is then pruned
+// although the file uses it.
+//
+// Without this option the formatter keeps a bare third-party import it cannot name, and reports it as
+// in doubt.
+//
+// Pass [WithResolvedImports] alongside to cover the imports the promise does not. A name given there
+// is used instead of the guess, so one awkward dependency does not cost the promise:
+//
+//	formatting.Format(out, src,
+//		formatting.WithForceImportsPruning(),
+//		formatting.WithResolvedImports(map[string]string{
+//			"github.com/json-iterator/go": "jsoniter",
+//		}),
+//	)
+func WithForceImportsPruning() Option {
+	return func(o *options) {
+		o.forcePruning = true
+	}
 }
 
-// FormatOptsWithDefault applies the given options on top of [DefaultFormatOpts].
-func FormatOptsWithDefault(opts []FormatOption) FormatOpts {
-	o := DefaultFormatOpts
+// WithResolvedImports states the name each import path declares, for the paths no rule can guess.
+//
+// "github.com/json-iterator/go" declares jsoniter and "github.com/prometheus/client_model/go"
+// declares io_prometheus_client; nothing in either path says so. A name given here is treated as
+// certain, so the import is pruned when unused and never reported as in doubt.
+//
+// A path appears in at most one place, and the first of these wins: an alias written in the source,
+// this map, then the generated standard library table, then the guesses.
+//
+// It combines with [WithForceImportsPruning], which settles every path the map leaves out.
+//
+// The map is read, not kept: pass the same map to as many concurrent calls as you like. Build it with
+// github.com/go-openapi/codegen/formatting/resolve, which answers from the packages themselves rather
+// than from the machine, so one map serves every build.
+func WithResolvedImports(names map[string]string) Option {
+	return func(o *options) {
+		if len(names) == 0 {
+			return
+		}
+
+		if o.resolved == nil {
+			o.resolved = make(map[string]string, len(names))
+		}
+
+		for importPath, name := range names {
+			o.resolved[importPath] = name
+		}
+	}
+}
+
+// WithSimplifiedImportAliases drops an alias that repeats the name its package declares.
+//
+//	import fmt "fmt"                              ->  import "fmt"
+//	import strfmt "github.com/go-openapi/strfmt"  ->  import "github.com/go-openapi/strfmt"
+//
+// A template that writes the alias even where Go would leave it out gets exact pruning without
+// promising anything, because an alias states the name. This takes those aliases back out once the
+// name is proven, so the output reads as ordinary Go. The second line above needs
+// [WithResolvedImports] to name that package; the first is proven by the standard library table.
+//
+// An alias survives when dropping it would lose something. jsoniter "github.com/json-iterator/go"
+// keeps its alias even with the name proven, because the path does not say jsoniter and the bare
+// import would leave nothing that does. So does an alias that renames a package, as sql "database/sql
+// /driver", and so do _ and . imports.
+//
+// Nothing is dropped on a guess. Without evidence from the table or the map, every alias stays.
+func WithSimplifiedImportAliases() Option {
+	return func(o *options) {
+		o.simplifyAliases = true
+	}
+}
+
+func optionsWithDefaults(opts []Option) options {
+	var o options
 
 	for _, apply := range opts {
 		apply(&o)
 	}
 
 	return o
-}
-
-// Options describes a target language to the code generator.
-type Options struct {
-	BaseImportFunc       MangleFunc                     `json:"-"`
-	ImportsFunc          func(map[string]string) string `json:"-"`
-	ArrayInitializerFunc func(any) (string, error)      `json:"-"`
-	FormatOnly           bool
-	ExtraInitialisms     []string
-	Mangler              mangling.GoMangler
-
-	initialized bool
-	formatFunc  FormatterFunc
-}
-
-// SetFormatFunc sets the formatting function for this language.
-func (l *Options) SetFormatFunc(fn FormatterFunc) {
-	l.formatFunc = fn
-}
-
-// Init the language option.
-func (l *Options) Init() {
-	if l.initialized {
-		return
-	}
-
-	l.Mangler = mangling.MakeGoMangler(
-		mangling.WithGoInitialisms(l.ExtraInitialisms...),
-	)
-
-	l.initialized = true
-}
-
-// MangleName makes sure a string becomes a safe go identifier.
-func (l *Options) MangleName(name, suffix string) string {
-	if name == "" {
-		return suffix
-	}
-
-	return l.Mangler.IdentExported(name)
-}
-
-// MangleVarName makes sure a reserved word gets a safe name.
-func (l *Options) MangleVarName(name string) string {
-	return l.Mangler.IdentUnexported(name)
-}
-
-// MangleFileName makes sure a file name gets a safe name.
-func (l *Options) MangleFileName(name string) string {
-	return l.Mangler.File(name)
-}
-
-// ManglePackageName makes sure a package gets a safe name.
-// In case of a file system path (e.g. name contains "/" or "\" on Windows), this return only the last element.
-func (l *Options) ManglePackageName(name, suffix string) string {
-	if name == "" {
-		return suffix
-	}
-
-	target := filepath.ToSlash(filepath.Clean(name)) // preserve path
-	short, _ := l.Mangler.Package(target)
-
-	return short
-}
-
-// ManglePackagePath makes sure a full package path gets a safe name.
-// Only the last part of the path is altered.
-func (l *Options) ManglePackagePath(name string, suffix string) string {
-	if name == "" {
-		return suffix
-	}
-
-	target := filepath.ToSlash(filepath.Clean(name)) // preserve path
-	_, fqn := l.Mangler.Package(target)
-
-	return fqn
-}
-
-// FormatContent formats a file with a language specific formatter.
-func (l *Options) FormatContent(name string, content []byte, opts ...FormatOption) ([]byte, error) {
-	if l.formatFunc != nil {
-		return l.formatFunc(name, content, opts...)
-	}
-
-	// unformatted content
-	return content, nil
-}
-
-// Imports generates the code to import some external packages, possibly aliased.
-func (l *Options) Imports(imports map[string]string) string {
-	if l.ImportsFunc != nil {
-		return l.ImportsFunc(imports)
-	}
-
-	return ""
-}
-
-// ArrayInitializer builds a literal array.
-func (l *Options) ArrayInitializer(data any) (string, error) {
-	if l.ArrayInitializerFunc != nil {
-		return l.ArrayInitializerFunc(data)
-	}
-
-	return "", nil
-}
-
-// BaseImport figures out the base path to generate import statements.
-func (l *Options) BaseImport(tgt string) string {
-	if l.BaseImportFunc != nil {
-		return l.BaseImportFunc(tgt)
-	}
-
-	return ""
 }

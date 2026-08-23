@@ -1,0 +1,9 @@
+package p
+
+import (
+	rand "math/rand"
+
+	"crypto/rand"
+)
+
+var _ = rand.Read

@@ -1,0 +1,8 @@
+package p
+
+// #include <stdio.h>
+import "C"
+
+import "bytes"
+
+var _ bytes.Buffer

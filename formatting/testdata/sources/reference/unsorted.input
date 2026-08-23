@@ -1,0 +1,13 @@
+package p
+
+import (
+	"strings"
+	"bytes"
+	"context"
+)
+
+var (
+	_ = strings.Title
+	_ bytes.Buffer
+	_ = context.TODO
+)

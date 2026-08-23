@@ -1,0 +1,4 @@
+{{- /* a template addressed under a directory */ -}}
+package {{ .Package }}
+
+type {{ pascalize .Name }}Nested struct{ Value int }

@@ -1,0 +1,11 @@
+package p
+
+import (
+	buf "bufio"
+	"bytes"
+)
+
+var (
+	_ = buf.NewReader
+	_ bytes.Buffer
+)

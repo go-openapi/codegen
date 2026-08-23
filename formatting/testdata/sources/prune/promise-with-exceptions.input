@@ -1,0 +1,14 @@
+package p
+
+import (
+	"github.com/json-iterator/go"
+	"github.com/go-openapi/strfmt"
+	"k8s.io/api/apps/v1"
+	"github.com/go-openapi/swag"
+)
+
+var (
+	_ = jsoniter.Marshal
+	_ = strfmt.Date{}
+	_ = v1.Deployment{}
+)

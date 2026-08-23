@@ -1,0 +1,4 @@
+# The test suites compare formatted Go byte for byte against goldens and fixtures, and the formatter
+# emits LF. A checkout that translates line endings - which is the default on a Windows runner - makes
+# every one of those comparisons fail on the line ending alone. Check text out with LF everywhere.
+* text=auto eol=lf

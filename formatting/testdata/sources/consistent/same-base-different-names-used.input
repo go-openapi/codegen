@@ -1,0 +1,11 @@
+package p
+
+import (
+	"github.com/go-openapi/core"
+	"k8s.io/api/core/v1"
+)
+
+var (
+	_ = core.String
+	_ = v1.Pod{}
+)

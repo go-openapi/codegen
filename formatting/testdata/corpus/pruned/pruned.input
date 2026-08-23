@@ -1,0 +1,20 @@
+package pruned
+
+import (
+	"bytes"
+	"context"
+	"strings"
+	_ "embed"
+	unused "net/http"
+	buf "bufio"
+	"gopkg.in/yaml.v3"
+)
+
+// Keep uses only some of what the template imported.
+func Keep() {
+	var b bytes.Buffer
+	_ = b
+	_ = context.TODO
+	_, _ = yaml.Marshal(nil)
+	_ = buf.NewReader
+}

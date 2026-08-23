@@ -1,0 +1,8 @@
+package p
+
+import (
+	"crypto/rand"
+	"math/rand"
+)
+
+var _ = 1

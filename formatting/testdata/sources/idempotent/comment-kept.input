@@ -1,0 +1,11 @@
+package p
+
+import (
+	"bytes" // a comment on the import
+	"context"
+)
+
+var (
+	_ bytes.Buffer
+	_ = context.TODO
+)

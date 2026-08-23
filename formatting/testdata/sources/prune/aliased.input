@@ -1,0 +1,8 @@
+package p
+
+import (
+	buf "bytes"
+	unused "strings"
+)
+
+var _ buf.Buffer
