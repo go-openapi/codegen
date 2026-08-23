@@ -30,7 +30,7 @@ const goModFile = "go.mod"
 // A go.mod already in the output path is left alone and reported as [fs.ErrExist], unless
 // [WithReplaceExisting] says otherwise.
 func (g *GoGenApp) InitModule(opts ...ModOption) error {
-	o, err := modOptionsWithDefaults(opts)
+	o, err := applyModWithDefaults(opts)
 	if err != nil {
 		return err
 	}

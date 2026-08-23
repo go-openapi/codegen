@@ -87,7 +87,7 @@ func sourceBytes[T Source](src T) []byte {
 }
 
 func format(w io.Writer, src []byte, opts ...Option) (*ImportsReport, error) {
-	o := optionsWithDefaults(opts)
+	o := applyWithDefaults(opts)
 
 	var extraRules rules.Func
 	if o.goFumpt {

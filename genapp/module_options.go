@@ -15,16 +15,18 @@ import (
 	"golang.org/x/mod/module"
 )
 
-// ModOption configures the go.mod [GoGenApp.InitModule] writes.
-type ModOption func(*modOptions)
+type (
+	// ModOption configures the go.mod [GoGenApp.InitModule] writes.
+	ModOption func(modOptions) modOptions
 
-type modOptions struct {
-	modulePath string
-	goVersion  string
-	toolchain  string
-	requires   []requirement
-	replace    bool
-}
+	modOptions struct {
+		modulePath string
+		goVersion  string
+		toolchain  string
+		requires   []requirement
+		replace    bool
+	}
+)
 
 type requirement struct {
 	path     string
@@ -37,8 +39,10 @@ type requirement struct {
 // The path is cleaned and slash-separated, and it is checked the way the go command checks it, so a
 // path no module could have is reported here rather than by the first build.
 func WithModulePath(pth string) ModOption {
-	return func(o *modOptions) {
+	return func(o modOptions) modOptions {
 		o.modulePath = path.Clean(filepath.ToSlash(pth))
+
+		return o
 	}
 }
 
@@ -46,8 +50,10 @@ func WithModulePath(pth string) ModOption {
 //
 // It defaults to the version of Go this program was built with, which is what "go mod init" writes.
 func WithGoVersion(version string) ModOption {
-	return func(o *modOptions) {
+	return func(o modOptions) modOptions {
 		o.goVersion = version
+
+		return o
 	}
 }
 
@@ -61,12 +67,14 @@ func WithGoVersion(version string) ModOption {
 // needs a toolchain newer than the one installed. Set it to say which toolchain a generated module
 // is meant to build with, whatever is on the machine that generated it.
 func WithToolchain(name string) ModOption {
-	return func(o *modOptions) {
+	return func(o modOptions) modOptions {
 		if name != "" && name != toolchainDefault && !strings.HasPrefix(name, "go") {
 			name = "go" + name
 		}
 
 		o.toolchain = name
+
+		return o
 	}
 }
 
@@ -76,8 +84,10 @@ func WithToolchain(name string) ModOption {
 // versions to start from rather than resolving every import from scratch. Mark a requirement
 // indirect when nothing the module itself holds imports it.
 func WithRequire(pth, version string, indirect bool) ModOption {
-	return func(o *modOptions) {
+	return func(o modOptions) modOptions {
 		o.requires = append(o.requires, requirement{path: pth, version: version, indirect: indirect})
+
+		return o
 	}
 }
 
@@ -86,8 +96,10 @@ func WithRequire(pth, version string, indirect bool) ModOption {
 // Without it [GoGenApp.InitModule] leaves an existing file alone and reports [fs.ErrExist], as
 // "go mod init" does.
 func WithReplaceExisting(replace bool) ModOption {
-	return func(o *modOptions) {
+	return func(o modOptions) modOptions {
 		o.replace = replace
+
+		return o
 	}
 }
 
@@ -111,11 +123,11 @@ func defaultGoVersion() string {
 	return fallback
 }
 
-func modOptionsWithDefaults(opts []ModOption) (modOptions, error) {
+func applyModWithDefaults(opts []ModOption) (modOptions, error) {
 	o := modOptions{goVersion: defaultGoVersion()}
 
 	for _, apply := range opts {
-		apply(&o)
+		o = apply(o)
 	}
 
 	if o.modulePath == "" || o.modulePath == "." {

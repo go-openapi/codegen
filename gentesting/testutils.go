@@ -97,23 +97,40 @@ func SanitizeGoModPath(pth string) string {
 	return path.Clean(sanitizer.Replace(filepath.Base(pth)))
 }
 
-type GoModOption func(o *goModOptions)
+type (
+	// GoModOption configures [GoModInit].
+	GoModOption func(goModOptions) goModOptions
 
-type goModOptions struct {
-	moduleName string
+	goModOptions struct {
+		moduleName string
+	}
+)
+
+// WithGoModuleName names the module, instead of deriving it from the path.
+func WithGoModuleName(name string) GoModOption {
+	return func(o goModOptions) goModOptions {
+		o.moduleName = name
+
+		return o
+	}
 }
 
-func WithGoModuleName(name string) GoModOption {
-	return func(o *goModOptions) {
-		o.moduleName = name
+// applyGoModWithDefaults folds the chain over the zero options, left to right.
+//
+// The zero value leaves the module name empty, and [GoModInit] then derives one from the path with
+// [SanitizeGoModPath].
+func applyGoModWithDefaults(opts []GoModOption) goModOptions {
+	var o goModOptions
+
+	for _, apply := range opts {
+		o = apply(o)
 	}
+
+	return o
 }
 
 func GoModInit(pth string, opts ...GoModOption) func(*testing.T) {
-	var o goModOptions
-	for _, apply := range opts {
-		apply(&o)
-	}
+	o := applyGoModWithDefaults(opts)
 
 	if o.moduleName == "" {
 		o.moduleName = SanitizeGoModPath(pth)

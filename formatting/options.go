@@ -3,29 +3,37 @@
 
 package formatting
 
-// Option configures [Format].
-type Option func(*options)
+import "maps"
 
-type options struct {
-	groups          []string
-	goFumpt         bool
-	forcePruning    bool
-	simplifyAliases bool
-	resolved        map[string]string
-}
+type (
+	// Option configures [Format].
+	Option func(options) options
+
+	options struct {
+		groups   []string
+		resolved map[string]string
+
+		goFumpt         bool
+		forcePruning    bool
+		simplifyAliases bool
+	}
+)
 
 // WithImportGroups adds one import group per prefix, between the standard library and the rest.
 //
 // An import belongs to the first prefix it starts with, so pass the more specific prefix first.
 // Without this option the output has two groups: the standard library, then everything else.
 func WithImportGroups(prefixes ...string) Option {
-	return func(o *options) {
+	return func(o options) options {
 		for _, prefix := range prefixes {
 			if prefix == "" {
 				continue
 			}
+
 			o.groups = append(o.groups, prefix)
 		}
+
+		return o
 	}
 }
 
@@ -34,8 +42,10 @@ func WithImportGroups(prefixes ...string) Option {
 // Blank-import github.com/go-openapi/codegen/formatting/enable/gofumpt to make the rules available.
 // Without it [Format] returns [ErrNoGoFumpt] rather than printing without them.
 func WithGoFumpt() Option {
-	return func(o *options) {
+	return func(o options) options {
 		o.goFumpt = true
+
+		return o
 	}
 }
 
@@ -60,8 +70,10 @@ func WithGoFumpt() Option {
 //		}),
 //	)
 func WithForceImportsPruning() Option {
-	return func(o *options) {
+	return func(o options) options {
 		o.forcePruning = true
+
+		return o
 	}
 }
 
@@ -80,18 +92,18 @@ func WithForceImportsPruning() Option {
 // github.com/go-openapi/codegen/formatting/resolve, which answers from the packages themselves rather
 // than from the machine, so one map serves every build.
 func WithResolvedImports(names map[string]string) Option {
-	return func(o *options) {
+	return func(o options) options {
 		if len(names) == 0 {
-			return
+			return o
 		}
 
 		if o.resolved == nil {
 			o.resolved = make(map[string]string, len(names))
 		}
 
-		for importPath, name := range names {
-			o.resolved[importPath] = name
-		}
+		maps.Copy(o.resolved, names)
+
+		return o
 	}
 }
 
@@ -112,16 +124,22 @@ func WithResolvedImports(names map[string]string) Option {
 //
 // Nothing is dropped on a guess. Without evidence from the table or the map, every alias stays.
 func WithSimplifiedImportAliases() Option {
-	return func(o *options) {
+	return func(o options) options {
 		o.simplifyAliases = true
+
+		return o
 	}
 }
 
-func optionsWithDefaults(opts []Option) options {
+// applyWithDefaults folds the chain over the zero options, left to right.
+//
+// The zero value is the default throughout: no group past the standard library and the rest, no
+// gofumpt, no forced pruning, and no name the caller supplied.
+func applyWithDefaults(opts []Option) options {
 	var o options
 
 	for _, apply := range opts {
-		apply(&o)
+		o = apply(o)
 	}
 
 	return o

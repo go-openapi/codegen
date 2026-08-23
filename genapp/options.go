@@ -11,17 +11,19 @@ import (
 	repo "github.com/go-openapi/codegen/templates-repo"
 )
 
-// Option configures a [GoGenApp].
-type Option func(*options)
+type (
+	// Option configures a [GoGenApp].
+	Option func(options) options
 
-type options struct {
-	templates       *repo.Repository
-	outputPath      string
-	formatOptions   []formatting.Option
-	importsReporter func(string, *formatting.ImportsReport)
-	skipFormat      bool
-	skipFormatFunc  func(target string) bool
-}
+	options struct {
+		templates       *repo.Repository
+		outputPath      string
+		formatOptions   []formatting.Option
+		importsReporter func(string, *formatting.ImportsReport)
+		skipFormat      bool
+		skipFormatFunc  func(target string) bool
+	}
+)
 
 // WithTemplates sets the repository to render from. [New] needs it.
 //
@@ -38,15 +40,19 @@ type options struct {
 //
 //	app, err := genapp.New(genapp.WithTemplates(templates))
 func WithTemplates(templates *repo.Repository) Option {
-	return func(o *options) {
+	return func(o options) options {
 		o.templates = templates
+
+		return o
 	}
 }
 
 // WithOutputPath sets where [GoGenApp.RenderFile] writes. Targets are relative to that directory.
 func WithOutputPath(path string) Option {
-	return func(o *options) {
+	return func(o options) options {
 		o.outputPath = path
+
+		return o
 	}
 }
 
@@ -59,8 +65,10 @@ func WithOutputPath(path string) Option {
 //		formatting.WithImportGroups("github.com/go-openapi", baseImport),
 //	)
 func WithFormatOptions(opts ...formatting.Option) Option {
-	return func(o *options) {
+	return func(o options) options {
 		o.formatOptions = append(o.formatOptions, opts...)
+
+		return o
 	}
 }
 
@@ -79,8 +87,10 @@ func WithFormatOptions(opts ...formatting.Option) Option {
 // Resolve the paths it lists once, then pass the names through
 // [formatting.WithResolvedImports] with [WithFormatOptions].
 func WithImportsReporter(report func(template string, report *formatting.ImportsReport)) Option {
-	return func(o *options) {
+	return func(o options) options {
 		o.importsReporter = report
+
+		return o
 	}
 }
 
@@ -90,8 +100,10 @@ func WithImportsReporter(report func(template string, report *formatting.Imports
 // written, and finding out why means reading the output. Turn this on and the file lands
 // unformatted.
 func WithSkipFormat(skipped bool) Option {
-	return func(o *options) {
+	return func(o options) options {
 		o.skipFormat = skipped
+
+		return o
 	}
 }
 
@@ -99,8 +111,10 @@ func WithSkipFormat(skipped bool) Option {
 //
 // The default formats a target whose name ends in ".go" and copies anything else through.
 func WithSkipFormatFunc(skip func(target string) bool) Option {
-	return func(o *options) {
+	return func(o options) options {
 		o.skipFormatFunc = skip
+
+		return o
 	}
 }
 
@@ -109,11 +123,13 @@ func (o options) skipsFormat(target string) bool {
 	return o.skipFormat || o.skipFormatFunc(target)
 }
 
-func optionsWithDefaults(opts []Option) options {
+// applyWithDefaults folds the chain over the zero options, left to right, then settles the one
+// default that is not a zero value.
+func applyWithDefaults(opts []Option) options {
 	var o options
 
 	for _, apply := range opts {
-		apply(&o)
+		o = apply(o)
 	}
 
 	if o.skipFormatFunc == nil {
