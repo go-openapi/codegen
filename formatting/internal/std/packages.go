@@ -5,6 +5,13 @@
 
 package std
 
+// GeneratedFor names the Go release this table was read from, as in "go1.27".
+//
+// A later release adds packages the table does not hold, and [Name] then answers false for them,
+// which leaves the formatter guessing rather than wrong. TestTableMatchesToolchain checks the table
+// exactly on this release and checks only the names they share on any other.
+const GeneratedFor = "go1.27"
+
 // names maps every importable standard library path to the name its package clause declares.
 var names = map[string]string{
 	"archive/tar":            "tar",
@@ -172,6 +179,7 @@ var names = map[string]string{
 	"sync":                   "sync",
 	"sync/atomic":            "atomic",
 	"syscall":                "syscall",
+	"syscall/js":             "js",
 	"testing":                "testing",
 	"testing/cryptotest":     "cryptotest",
 	"testing/fstest":         "fstest",

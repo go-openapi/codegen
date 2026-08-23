@@ -5,6 +5,7 @@ package std_test
 
 import (
 	"os/exec"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -47,10 +48,18 @@ func TestName(t *testing.T) {
 	})
 }
 
-// TestTableIsCurrent fails when a Go release has moved the standard library under us.
+// TestTableMatchesToolchain checks the generated table against the toolchain running the test.
+//
+// The table is not the same everywhere. A newer Go release adds packages, and the standard library
+// differs by platform: runtime/cgo is absent on windows, syscall/js exists only on js/wasm. So the
+// hard check covers correctness alone: a path both sides hold must declare the same name. A path only
+// "go list std" holds means the table is behind, which leaves the formatter guessing rather than
+// wrong, and is reported rather than failed.
+//
+// On [std.GeneratedFor], the release the table was read from, the two must agree exactly.
 //
 // Regenerate with "go generate ./internal/std".
-func TestTableIsCurrent(t *testing.T) {
+func TestTableMatchesToolchain(t *testing.T) {
 	t.Parallel()
 
 	if testing.Short() {
@@ -60,7 +69,7 @@ func TestTableIsCurrent(t *testing.T) {
 	out, err := exec.CommandContext(t.Context(), "go", "list", "-f", "{{.ImportPath}} {{.Name}}", "std").Output()
 	require.NoError(t, err)
 
-	var checked int
+	var absent []string
 
 	for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
 		importPath, name, ok := strings.Cut(line, " ")
@@ -68,13 +77,36 @@ func TestTableIsCurrent(t *testing.T) {
 			continue
 		}
 
-		checked++
-
 		got, found := std.Name(importPath)
-		if assert.True(t, found, "%s is missing from the table", importPath) {
-			assert.Equal(t, name, got, "%s", importPath)
+		if !found {
+			absent = append(absent, importPath)
+
+			continue
 		}
+
+		assert.Equal(t, name, got, "%s: the table names it wrongly", importPath)
 	}
 
-	assert.Equal(t, checked, std.Len(), "the table holds packages go list std does not")
+	if len(absent) == 0 {
+		return
+	}
+
+	if runningRelease() == std.GeneratedFor {
+		assert.Empty(t, absent, "the table was read from %s and is missing packages it holds", std.GeneratedFor)
+
+		return
+	}
+
+	t.Logf("%d packages of %s are absent from the table, read from %s: %v",
+		len(absent), runningRelease(), std.GeneratedFor, absent)
+}
+
+// runningRelease names the Go release running the test, as in "go1.27".
+func runningRelease() string {
+	parts := strings.SplitN(runtime.Version(), ".", 3)
+	if len(parts) < 2 {
+		return runtime.Version()
+	}
+
+	return parts[0] + "." + parts[1]
 }
