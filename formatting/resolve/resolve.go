@@ -70,7 +70,8 @@ func WithBuildFlags(flags ...string) Option {
 // [github.com/go-openapi/codegen/formatting.ImportsReport.PathsInDoubt] without checking first.
 //
 // A path that does not resolve is left out of the map, and the error wraps [ErrUnresolved] and names
-// every one of them. The map still holds what did resolve, so use it and report the rest:
+// every one of them with what go list said, as in "no required module provides package X". The map
+// still holds what did resolve, so use it and report the rest:
 //
 //	names, err := resolve.Names(ctx, paths)
 //	if err != nil && !errors.Is(err, resolve.ErrUnresolved) {
@@ -101,17 +102,28 @@ func Names(ctx context.Context, paths []string, opts ...Option) (map[string]stri
 	}
 
 	names := make(map[string]string, len(loaded))
+	reasons := make(map[string]string, len(loaded))
 
 	for _, pkg := range loaded {
-		if pkg.Name == "" || pkg.PkgPath == "" || len(pkg.Errors) > 0 {
+		if pkg.PkgPath == "" {
+			continue
+		}
+
+		if len(pkg.Errors) > 0 {
+			reasons[pkg.PkgPath] = oneLine(pkg.Errors[0].Msg)
+
+			continue
+		}
+
+		if pkg.Name == "" {
 			continue
 		}
 
 		names[pkg.PkgPath] = pkg.Name
 	}
 
-	if missing := missingFrom(wanted, names); len(missing) > 0 {
-		return names, fmt.Errorf("%s: %w: %w", strings.Join(missing, ", "), ErrUnresolved, ErrResolve)
+	if missing := missingFrom(wanted, names, reasons); len(missing) > 0 {
+		return names, fmt.Errorf("%s: %w: %w", strings.Join(missing, "; "), ErrUnresolved, ErrResolve)
 	}
 
 	return names, nil
@@ -132,15 +144,31 @@ func distinct(paths []string) []string {
 	return wanted
 }
 
-// missingFrom lists the paths that came back without a name.
-func missingFrom(wanted []string, names map[string]string) []string {
+// missingFrom lists the paths that came back without a name, each with what go list said about it.
+//
+// go list explains itself well - "no required module provides package X; to add it: go get X" - and
+// that sentence is the whole of what a caller needs, so it travels in the error rather than being
+// dropped for a tidier message. A path go list did not mention at all gets a stand-in.
+func missingFrom(wanted []string, names, reasons map[string]string) []string {
 	var missing []string
 
 	for _, importPath := range wanted {
-		if _, ok := names[importPath]; !ok {
-			missing = append(missing, importPath)
+		if _, ok := names[importPath]; ok {
+			continue
 		}
+
+		reason, ok := reasons[importPath]
+		if !ok {
+			reason = "go list returned no package for it"
+		}
+
+		missing = append(missing, importPath+" ("+reason+")")
 	}
 
 	return missing
+}
+
+// oneLine flattens a go list message, which wraps its "to add it" hint onto a second line.
+func oneLine(message string) string {
+	return strings.Join(strings.Fields(message), " ")
 }

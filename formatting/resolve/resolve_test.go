@@ -77,8 +77,21 @@ func TestNames(t *testing.T) {
 		assert.ErrorIs(t, err, resolve.ErrUnresolved)
 		assert.ErrorIs(t, err, resolve.ErrResolve)
 		assert.Contains(t, err.Error(), "example.invalid/nope")
+		assert.Contains(t, err.Error(), "no required module provides package",
+			"go list says why, and the caller needs that sentence")
 
 		assert.Equal(t, "bytes", names["bytes"], "what resolved is still usable")
+	})
+
+	t.Run("should say why a path outside the build list did not resolve", func(t *testing.T) {
+		t.Parallel()
+
+		// a real package, but nothing in this module requires it
+		_, err := resolve.Names(t.Context(), []string{"github.com/json-iterator/go"})
+
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "go get github.com/json-iterator/go",
+			"the message carries the fix go list suggests")
 	})
 
 	t.Run("should stop when the context is done", func(t *testing.T) {
