@@ -33,6 +33,12 @@
 //
 // Rerun it when a dependency is added, or when one renames its package. Nothing detects that for you.
 //
+// # What it does not check
+//
+// [Names] answers for any path go list can find, an internal package of another module included.
+// Nothing here asks whether the importing file may legally use it: go build rejects such an import
+// and names the file and the line.
+//
 // # What it costs
 //
 // [Names] runs "go list" through golang.org/x/tools/go/packages, so it needs the go toolchain and a

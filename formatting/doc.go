@@ -78,6 +78,13 @@
 // names into the file scope and no qualifier ever appears, so nothing about it can be checked: use
 // goimports on a file that relies on them.
 //
+// # What Format does not check
+//
+// Format reads one file's syntax and nothing else. An import of another module's internal package
+// formats like any other, a //go:build line is copied through untouched, and config_linux.go is
+// formatted the same as any other file. The go compiler enforces those rules, and Format does not
+// duplicate them.
+//
 // # The imports report
 //
 // Format returns an [ImportsReport] beside its error, holding one [ImportRecord] per import: the
