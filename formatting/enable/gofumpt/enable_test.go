@@ -48,6 +48,27 @@ func TestEnable(t *testing.T) {
 		assert.Contains(t, format(t, source(t, "generated"), formatting.WithGoFumpt()), "func F(a, b int)")
 	})
 
+	t.Run("should apply every rule named in one call", func(t *testing.T) {
+		// gofumpt's Extra.Set clears itself before reading a list, so asking for the rules one Set at
+		// a time kept only the last of them.
+		require.NoError(t, gofumpt.Configure(
+			gofumpt.WithLangVersion("go1.25"),
+			gofumpt.WithExtraRules("group_params", "clothe_returns"),
+		))
+
+		out := format(t, source(t, "generated"), formatting.WithGoFumpt())
+
+		assert.Contains(t, out, "func F(a, b int)",
+			"group_params is named first, and the rule after it must not clear it")
+	})
+
+	t.Run("should name the rule it does not know", func(t *testing.T) {
+		err := gofumpt.Configure(gofumpt.WithExtraRules("group_params", "no_such_rule"))
+
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "no_such_rule")
+	})
+
 	t.Run("should leave the parameters alone without the extra rule", func(t *testing.T) {
 		require.NoError(t, gofumpt.Configure(gofumpt.WithLangVersion("go1.25")))
 

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"go/ast"
 	"go/token"
+	"strings"
 	"sync"
 
 	"github.com/go-openapi/codegen/formatting/internal/rules"
@@ -81,12 +82,19 @@ func WithModulePath(path string) Option {
 
 // WithExtraRules turns on rules gofumpt leaves off, named as gofumpt names them on its command line:
 // "group_params", "clothe_returns", "balance_calls". Passing "true" turns all of them on.
+//
+// The rules named replace whatever an earlier WithExtraRules asked for, which is how gofumpt's own
+// -extra flag behaves. Name every rule in one call:
+//
+//	gofumpt.WithExtraRules("group_params", "clothe_returns")
 func WithExtraRules(rules ...string) Option {
 	return func(o *fumpt.Options) error {
-		for _, rule := range rules {
-			if err := o.Extra.Set(rule); err != nil {
-				return fmt.Errorf("unknown gofumpt rule %q: %w", rule, err)
-			}
+		// Extra.Set clears itself before reading a list, so one call per rule would keep only the
+		// last. It takes the comma-separated form gofumpt's -extra flag takes.
+		named := strings.Join(rules, ",")
+
+		if err := o.Extra.Set(named); err != nil {
+			return fmt.Errorf("unknown gofumpt rule in %q: %w", named, err)
 		}
 
 		return nil
