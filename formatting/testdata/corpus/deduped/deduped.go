@@ -1,0 +1,17 @@
+package deduped
+
+import (
+	"bytes"
+	"context"
+
+	"github.com/go-openapi/swag/conv"
+)
+
+// Encode names each package once, although the imports declare two of them twice.
+func Encode(ctx context.Context, in *int) *bytes.Buffer {
+	_ = ctx
+	var buf bytes.Buffer
+	buf.WriteString(conv.FormatInteger(conv.Value(in)))
+
+	return &buf
+}

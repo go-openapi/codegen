@@ -1,0 +1,16 @@
+package p
+
+import (
+	"strings"
+	"bytes"
+
+	"errors"
+	"context"
+)
+
+var (
+	_ = strings.NewReader
+	_ = bytes.NewReader
+	_ = errors.New
+	_ = context.TODO
+)

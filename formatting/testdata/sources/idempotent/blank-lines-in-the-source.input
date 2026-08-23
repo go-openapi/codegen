@@ -1,0 +1,17 @@
+package p
+
+import (
+	"strings"
+
+	"bytes"
+	"github.com/go-openapi/strfmt"
+
+	"context"
+)
+
+var (
+	_ = strings.NewReader
+	_ bytes.Buffer
+	_ strfmt.Date
+	_ = context.TODO
+)

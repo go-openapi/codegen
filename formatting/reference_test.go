@@ -16,10 +16,12 @@ import (
 
 // TestAgainstReference compares Format with goimports on sources where the two cannot disagree.
 //
-// This package was written against x/tools/internal/imports. Format parts company
-// with it in exactly two places, and neither is exercised here: Format never adds an import, and
-// [formatting.WithImportGroups] opens groups goimports has no way to express. Any other difference
-// is a bug in one of them.
+// This package was written against x/tools/internal/imports. Format parts company with it in three
+// places, none of them exercised here: Format never adds an import, [formatting.WithImportGroups]
+// opens groups goimports has no way to express, and Format sorts and dedups the whole import block
+// where goimports sorts each blank-line-separated run on its own. No fixture below writes a blank
+// line inside its import block, so the third difference cannot show. Any other difference is a bug
+// in one of them.
 func TestAgainstReference(t *testing.T) {
 	t.Parallel()
 

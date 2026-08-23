@@ -24,6 +24,12 @@ import (
 
 // sortImports orders the imports of every import block and removes the duplicates it safely can.
 //
+// The whole block is one run: a blank line the source left between two imports is not a boundary
+// here, so "bytes" written in two groups is one import in the output. gofmt and goimports sort each
+// blank-line-separated run on its own and leave that duplicate behind, which the compiler then
+// rejects with "bytes redeclared in this block". [groupBreaks] and [spacer] put the blank lines
+// back, from the prefixes [WithImportGroups] was given.
+//
 // It mutates the file and the token.File: a spec keeps the position of whichever spec used to sit
 // where it lands, so the printer lays the block out on consecutive lines.
 func sortImports(tokFile *token.File, file *ast.File, groups []string) {
@@ -43,27 +49,9 @@ func sortImports(tokFile *token.File, file *ast.File, groups []string) {
 			continue // a single import needs no sorting
 		}
 
-		gen.Specs = sortRuns(tokFile, file, gen.Specs, groups)
+		gen.Specs = sortSpecs(tokFile, file, gen.Specs, groups)
 		closeGap(tokFile, gen)
 	}
-}
-
-// sortRuns sorts each run of specs written on consecutive lines, separately.
-//
-// A blank line the caller left between two imports separates two runs, and sorting them apart keeps
-// a deliberate grouping in the source intact.
-func sortRuns(tokFile *token.File, file *ast.File, specs []ast.Spec, groups []string) []ast.Spec {
-	sorted := specs[:0]
-	start := 0
-
-	for i, spec := range specs {
-		if i > start && tokFile.Line(spec.Pos()) > 1+tokFile.Line(specs[i-1].End()) {
-			sorted = append(sorted, sortSpecs(tokFile, file, specs[start:i], groups)...)
-			start = i
-		}
-	}
-
-	return append(sorted, sortSpecs(tokFile, file, specs[start:], groups)...)
 }
 
 // closeGap removes the blank line a dedup may have left before the closing parenthesis.
@@ -180,7 +168,7 @@ func groupBreaks(fset *token.FileSet, file *ast.File, groups []string) []string 
 	return breaks
 }
 
-// sortSpecs sorts one run of import specs and reassigns positions so the run prints unbroken.
+// sortSpecs sorts an import block and reassigns positions so it prints on consecutive lines.
 func sortSpecs(tokFile *token.File, file *ast.File, specs []ast.Spec, groups []string) []ast.Spec {
 	if len(specs) <= 1 {
 		return specs // a lone import is sorted, and has nothing to collapse against
@@ -209,7 +197,7 @@ type posSpan struct {
 	End   token.Pos
 }
 
-// commentsInRun returns the comment groups written inside the span a run covers.
+// commentsInRun returns the comment groups written inside the span the specs cover.
 func commentsInRun(tokFile *token.File, file *ast.File, positions []posSpan) []*ast.CommentGroup {
 	lastLine := tokFile.Line(positions[len(positions)-1].End)
 	start, end := len(file.Comments), len(file.Comments)
@@ -280,7 +268,7 @@ func collapses(previous, next ast.Spec) bool {
 	return previous.(*ast.ImportSpec).Comment == nil
 }
 
-// replaceSpecPositions gives the sorted specs the positions the run occupied before sorting.
+// replaceSpecPositions gives the sorted specs the positions the block occupied before sorting.
 func replaceSpecPositions(
 	specs []ast.Spec,
 	positions []posSpan,
@@ -311,7 +299,8 @@ func replaceSpecPositions(
 	}
 }
 
-// closeRunGaps merges away the blank lines moving the comments opened.
+// closeRunGaps merges away the blank lines, both the ones the source wrote between its own groups
+// and the ones moving the comments opened.
 func closeRunGaps(tokFile *token.File, specs []ast.Spec) {
 	firstLine := tokFile.Line(specs[0].Pos())
 

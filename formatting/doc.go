@@ -41,6 +41,25 @@
 // cannot reproduce what a user reports. A template writes the imports its code needs, and code that
 // names a package it did not import fails to compile, which is a better answer than a guess.
 //
+// # Duplicate imports
+//
+// The blank lines a template wrote inside its import block mean nothing to Format: it sorts the
+// whole block at once and keeps one spec per path. A template that writes
+//
+//	import (
+//		"bytes"
+//
+//		"bytes"
+//		"context"
+//	)
+//
+// gets "bytes" and "context" back, in one group.
+//
+// gofmt and goimports both answer differently. They sort each blank-line-separated run on its own
+// and never move an import between runs, so both keep the second "bytes" and the file fails to
+// compile with "bytes redeclared in this block". A template assembling its imports from several
+// fragments hits this whenever two fragments contribute the same package.
+//
 // # Grouping
 //
 // Without [WithImportGroups] the output has two groups, the standard library and everything else.
