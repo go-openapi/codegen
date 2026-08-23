@@ -49,15 +49,24 @@ type Source interface {
 // Format formats Go source and writes the result to w.
 //
 // It drops the imports nothing uses, sorts and groups the rest, and prints in gofmt style. It never
-// adds an import: see the package documentation for why.
+// adds an import: see the package documentation for why. The blank lines the source wrote inside its
+// import block are ignored, so a path written in two groups is one import in the output.
+//
+// It returns [ErrInconsistentImports] when the imports left after pruning contradict each other —
+// one package under two names, or one name bound to two packages.
+//
+// The [ImportsReport] accounts for every import: what was pruned, what stayed, and what stayed only
+// because Format could not name the package. It comes back whenever the source parsed, an
+// [ErrInconsistentImports] included, and is nil only when parsing failed. Ask
+// [ImportsReport.HasImportsInDoubt] before trusting that pruning was exact.
 //
 // Passing a [bytes.Buffer] hands over its bytes and leaves it as it was: Format does not drain it,
 // so a caller rendering one template after another resets it and writes the next.
 //
-// The source is parsed, pruned, sorted and grouped before a byte is written, so a source that does
-// not parse leaves w untouched. Once printing starts only w itself can fail, and a fragment is
-// printed to a buffer and copied in one write.
-func Format[T Source](w io.Writer, src T, opts ...Option) error {
+// The source is parsed, pruned, sorted, grouped and checked before a byte is written, so a source
+// that does not parse or whose imports contradict each other leaves w untouched. Once printing
+// starts only w itself can fail, and a fragment is printed to a buffer and copied in one write.
+func Format[T Source](w io.Writer, src T, opts ...Option) (*ImportsReport, error) {
 	return format(w, sourceBytes(src), opts...)
 }
 
@@ -77,24 +86,31 @@ func sourceBytes[T Source](src T) []byte {
 	return any(src).([]byte)
 }
 
-func format(w io.Writer, src []byte, opts ...Option) error {
+func format(w io.Writer, src []byte, opts ...Option) (*ImportsReport, error) {
 	o := optionsWithDefaults(opts)
 
 	var extraRules rules.Func
 	if o.goFumpt {
 		if extraRules = rules.Registered(); extraRules == nil {
-			return ErrNoGoFumpt
+			return nil, ErrNoGoFumpt
 		}
 	}
 
-	fset, file, adjust, err := parse(src)
+	fset, file, adjust, err := parse(src, o.resolved)
 	if err != nil {
-		return fmt.Errorf("cannot parse source: %w: %w", err, ErrFormat)
+		return nil, fmt.Errorf("cannot parse source: %w: %w", err, ErrFormat)
 	}
 
-	prune(fset, file)
+	bindings, used := prune(fset, file, o)
 	mergeImports(file)
 	sortImports(fset.File(file.FileStart), file, o.groups)
+
+	report := newImportsReport(bindings, file, used)
+
+	if err := checkImports(report, o.forcePruning); err != nil {
+		return report, fmt.Errorf("%w: %w", err, ErrFormat)
+	}
+
 	breaks := groupBreaks(fset, file, o.groups)
 
 	if extraRules != nil {
@@ -102,10 +118,10 @@ func format(w io.Writer, src []byte, opts ...Option) error {
 	}
 
 	if adjust != nil {
-		return printFragment(w, fset, file, src, breaks, adjust)
+		return report, printFragment(w, fset, file, src, breaks, adjust)
 	}
 
-	return printFile(w, fset, file, breaks)
+	return report, printFile(w, fset, file, breaks)
 }
 
 // printFile prints a whole file straight to w, one line at a time.
@@ -116,7 +132,7 @@ func format(w io.Writer, src []byte, opts ...Option) error {
 // shadowed name without those scopes; when it cannot, the source is parsed again with them. The two
 // paths answer alike, so the second parse buys correctness in the rare file rather than in every
 // file.
-func parse(src []byte) (*token.FileSet, *ast.File, adjustFunc, error) {
+func parse(src []byte, resolved map[string]string) (*token.FileSet, *ast.File, adjustFunc, error) {
 	fset := token.NewFileSet()
 
 	file, adjust, err := parseFile(fset, src, fastMode)
@@ -124,7 +140,7 @@ func parse(src []byte) (*token.FileSet, *ast.File, adjustFunc, error) {
 		return nil, nil, nil, err
 	}
 
-	if !needsResolution(file) {
+	if !needsResolution(file, resolved) {
 		return fset, file, adjust, nil
 	}
 

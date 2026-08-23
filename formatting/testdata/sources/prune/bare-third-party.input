@@ -1,0 +1,8 @@
+package p
+
+import (
+	"bytes"
+	"github.com/go-openapi/strfmt"
+)
+
+var _ bytes.Buffer

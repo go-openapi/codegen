@@ -15,11 +15,12 @@ import (
 type Option func(*options)
 
 type options struct {
-	templates      *repo.Repository
-	outputPath     string
-	formatOptions  []formatting.Option
-	skipFormat     bool
-	skipFormatFunc func(target string) bool
+	templates       *repo.Repository
+	outputPath      string
+	formatOptions   []formatting.Option
+	importsReporter func(string, *formatting.ImportsReport)
+	skipFormat      bool
+	skipFormatFunc  func(target string) bool
 }
 
 // WithTemplates sets the repository to render from. [New] needs it.
@@ -60,6 +61,26 @@ func WithOutputPath(path string) Option {
 func WithFormatOptions(opts ...formatting.Option) Option {
 	return func(o *options) {
 		o.formatOptions = append(o.formatOptions, opts...)
+	}
+}
+
+// WithImportsReporter calls report for every file rendered, with the name of the template that
+// rendered it.
+//
+// [formatting.Format] keeps an import whose package it cannot name, rather than delete one the code
+// may be using, and says so in the report. Use this to see those:
+//
+//	genapp.WithImportsReporter(func(template string, report *formatting.ImportsReport) {
+//		if report.HasImportsInDoubt() {
+//			log.Printf("%s: %v", template, report.PathsInDoubt())
+//		}
+//	})
+//
+// Read the names of the paths it lists once, then pass them through
+// [formatting.WithResolvedImports] with [WithFormatOptions].
+func WithImportsReporter(report func(template string, report *formatting.ImportsReport)) Option {
+	return func(o *options) {
+		o.importsReporter = report
 	}
 }
 

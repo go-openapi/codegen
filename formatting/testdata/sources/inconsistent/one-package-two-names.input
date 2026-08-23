@@ -1,0 +1,12 @@
+package p
+
+import (
+	"bytes"
+
+	b "bytes"
+)
+
+var (
+	_ bytes.Buffer
+	_ b.Reader
+)

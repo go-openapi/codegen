@@ -16,12 +16,17 @@ import (
 
 // TestAgainstReference compares Format with goimports on sources where the two cannot disagree.
 //
-// This package was written against x/tools/internal/imports. Format parts company with it in three
-// places, none of them exercised here: Format never adds an import, [formatting.WithImportGroups]
-// opens groups goimports has no way to express, and Format sorts and dedups the whole import block
-// where goimports sorts each blank-line-separated run on its own. No fixture below writes a blank
-// line inside its import block, so the third difference cannot show. Any other difference is a bug
-// in one of them.
+// This package was written against x/tools/internal/imports. Format parts company with it in four
+// places, none of them exercised here:
+//
+//   - Format never adds an import;
+//   - [formatting.WithImportGroups] opens groups goimports has no way to express;
+//   - Format sorts and dedups the whole import block, where goimports sorts each blank-line-separated
+//     run on its own, and no fixture below writes a blank line inside its import block;
+//   - Format keeps an unused bare third-party import, because it cannot know the name that package
+//     declares, and every fixture below imports the standard library or uses what it imports.
+//
+// Any other difference is a bug in one of them.
 func TestAgainstReference(t *testing.T) {
 	t.Parallel()
 
@@ -39,7 +44,8 @@ func TestAgainstReference(t *testing.T) {
 			require.NoError(t, err)
 
 			var out bytes.Buffer
-			require.NoError(t, formatting.Format(&out, []byte(src)))
+			_, err = formatting.Format(&out, []byte(src))
+			require.NoError(t, err)
 
 			assert.Equal(t, string(expected), out.String())
 		})
@@ -57,7 +63,8 @@ func TestNeverAdds(t *testing.T) {
 	require.Contains(t, string(resolved), `"fmt"`, "goimports resolves the missing import")
 
 	var out bytes.Buffer
-	require.NoError(t, formatting.Format(&out, []byte(src)))
+	_, err = formatting.Format(&out, []byte(src))
+	require.NoError(t, err)
 	assert.NotContains(t, out.String(), `"fmt"`, "Format leaves it to the compiler to complain")
 }
 
@@ -74,7 +81,7 @@ func BenchmarkFormat(b *testing.B) {
 
 		for b.Loop() {
 			var out bytes.Buffer
-			if err := formatting.Format(&out, src, groups); err != nil {
+			if _, err := formatting.Format(&out, src, groups); err != nil {
 				b.Fatal(err)
 			}
 		}

@@ -1,0 +1,9 @@
+package p
+
+import (
+	x "bytes"
+
+	x "strings"
+)
+
+var _ = x.NewReader

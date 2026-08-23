@@ -92,7 +92,9 @@ func format(t *testing.T, src string, opts ...formatting.Option) string {
 	t.Helper()
 
 	var out bytes.Buffer
-	require.NoError(t, formatting.Format(&out, []byte(src), opts...))
+
+	_, err := formatting.Format(&out, []byte(src), opts...)
+	require.NoError(t, err)
 
 	return out.String()
 }

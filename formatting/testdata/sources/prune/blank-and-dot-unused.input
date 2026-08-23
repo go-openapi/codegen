@@ -1,0 +1,9 @@
+package p
+
+import (
+	"bytes"
+	_ "embed"
+	. "strings"
+)
+
+var _ bytes.Buffer

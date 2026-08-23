@@ -128,7 +128,7 @@ func TestFormatErrors(t *testing.T) {
 		t.Parallel()
 
 		var out bytes.Buffer
-		err := formatting.Format(&out, []byte(source(t, "broken-decl")))
+		_, err := formatting.Format(&out, []byte(source(t, "broken-decl")))
 
 		require.Error(t, err)
 		assert.ErrorIs(t, err, formatting.ErrFormat)
@@ -139,7 +139,7 @@ func TestFormatErrors(t *testing.T) {
 		t.Parallel()
 
 		var out bytes.Buffer
-		err := formatting.Format(&out, []byte(source(t, "broken-expr")))
+		_, err := formatting.Format(&out, []byte(source(t, "broken-expr")))
 
 		require.Error(t, err)
 		assert.NotContains(t, err.Error(), "expected 'package'")
@@ -148,7 +148,7 @@ func TestFormatErrors(t *testing.T) {
 	t.Run("should refuse gofumpt when the enable module is absent", func(t *testing.T) {
 		t.Parallel()
 
-		err := formatting.Format(failingWriter{}, []byte(source(t, "empty-package")), formatting.WithGoFumpt())
+		_, err := formatting.Format(failingWriter{}, []byte(source(t, "empty-package")), formatting.WithGoFumpt())
 
 		require.Error(t, err)
 		assert.ErrorIs(t, err, formatting.ErrNoGoFumpt)
@@ -160,7 +160,8 @@ func TestFormatErrors(t *testing.T) {
 
 		for _, fixture := range []string{"broken-decl", "broken-expr"} {
 			var out countingWriter
-			require.Error(t, formatting.Format(&out, []byte(source(t, fixture))))
+			_, err := formatting.Format(&out, []byte(source(t, fixture)))
+			require.Error(t, err)
 
 			assert.Zero(t, out.writes, "%s: the printer never started", fixture)
 			assert.Zero(t, out.Len(), "%s: and w is untouched", fixture)
@@ -170,7 +171,7 @@ func TestFormatErrors(t *testing.T) {
 	t.Run("should report a writer that fails", func(t *testing.T) {
 		t.Parallel()
 
-		err := formatting.Format(failingWriter{}, []byte(source(t, "grouped")))
+		_, err := formatting.Format(failingWriter{}, []byte(source(t, "grouped")))
 
 		require.Error(t, err)
 		assert.ErrorIs(t, err, errWriter)
@@ -220,7 +221,8 @@ func format2(t *testing.T, src string, opts ...formatting.Option) string {
 	t.Helper()
 
 	var out bytes.Buffer
-	require.NoError(t, formatting.Format(&out, []byte(src), opts...))
+	_, err := formatting.Format(&out, []byte(src), opts...)
+	require.NoError(t, err)
 
 	return out.String()
 }
@@ -287,7 +289,8 @@ func TestSource(t *testing.T) {
 		t.Parallel()
 
 		var out bytes.Buffer
-		require.NoError(t, formatting.Format(&out, []byte(src)))
+		_, err := formatting.Format(&out, []byte(src))
+		require.NoError(t, err)
 		assert.Contains(t, out.String(), "package p")
 	})
 
@@ -298,7 +301,8 @@ func TestSource(t *testing.T) {
 		rendered.WriteString(src)
 
 		var out bytes.Buffer
-		require.NoError(t, formatting.Format(&out, &rendered))
+		_, err := formatting.Format(&out, &rendered)
+		require.NoError(t, err)
 
 		assert.Equal(t, src, rendered.String(), "Format reads the buffer without draining it")
 		assert.Equal(t, format2(t, src), out.String(), "and formats it the same as the bytes")
@@ -311,8 +315,11 @@ func TestSource(t *testing.T) {
 		rendered.WriteString(src)
 
 		var fromBuffer, fromBytes bytes.Buffer
-		require.NoError(t, formatting.Format(&fromBuffer, &rendered))
-		require.NoError(t, formatting.Format(&fromBytes, rendered.Bytes()))
+		_, err := formatting.Format(&fromBuffer, &rendered)
+		require.NoError(t, err)
+
+		_, err = formatting.Format(&fromBytes, rendered.Bytes())
+		require.NoError(t, err)
 
 		assert.Equal(t, fromBytes.String(), fromBuffer.String())
 	})
@@ -323,7 +330,7 @@ func TestSource(t *testing.T) {
 		var nothing *bytes.Buffer
 
 		var out bytes.Buffer
-		err := formatting.Format(&out, nothing)
+		_, err := formatting.Format(&out, nothing)
 
 		require.Error(t, err, "an empty source has no package clause")
 		assert.ErrorIs(t, err, formatting.ErrFormat)
@@ -339,7 +346,8 @@ func TestSource(t *testing.T) {
 			rendered.WriteString(source(t, fixture))
 
 			var out bytes.Buffer
-			require.NoError(t, formatting.Format(&out, &rendered))
+			_, err := formatting.Format(&out, &rendered)
+			require.NoError(t, err)
 			assert.Equal(t, format2(t, source(t, fixture)), out.String())
 		}
 	})

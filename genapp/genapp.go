@@ -181,9 +181,19 @@ func dumpUnformatted(file *os.File, path string, rendered *bytes.Buffer, cause e
 	return fmt.Errorf("the unformatted output is kept at %q: %w", dumped, cause)
 }
 
+// format writes the formatted render, and hands the imports report to the caller's sink.
+//
+// An import the formatter could not name is kept rather than pruned, so a report holding doubts is
+// worth seeing: it lists the paths to feed [github.com/go-openapi/codegen/formatting/resolve]. See
+// [WithImportsReporter].
 func (g *GoGenApp) format(w io.Writer, name string, rendered *bytes.Buffer) error {
-	if err := formatting.Format(w, rendered, g.formatOptions...); err != nil {
+	report, err := formatting.Format(w, rendered, g.formatOptions...)
+	if err != nil {
 		return fmt.Errorf("template %q rendered Go that does not format: %w: %w", name, err, ErrGenApp)
+	}
+
+	if g.importsReporter != nil {
+		g.importsReporter(name, report)
 	}
 
 	return nil

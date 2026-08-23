@@ -40,7 +40,8 @@ func TestCorpus(t *testing.T) {
 			require.NoError(t, err)
 
 			var out bytes.Buffer
-			require.NoError(t, formatting.Format(&out, src, corpusGroups))
+			_, err = formatting.Format(&out, src, corpusGroups)
+			require.NoError(t, err)
 
 			if *update {
 				require.NoError(t, os.WriteFile(golden, out.Bytes(), 0o600))

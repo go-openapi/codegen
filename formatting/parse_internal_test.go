@@ -93,7 +93,7 @@ var _ bytes.Buffer
 			file, _, err := parseFile(token.NewFileSet(), []byte(test.src), fastMode)
 			require.NoError(t, err)
 
-			assert.Equal(t, test.resolved, needsResolution(file))
+			assert.Equal(t, test.resolved, needsResolution(file, nil))
 		})
 	}
 }
@@ -139,7 +139,7 @@ func TestParsePathsAgree(t *testing.T) {
 				t.Skip("fixture does not parse; the error paths are covered elsewhere")
 			}
 
-			if needsResolution(file) {
+			if needsResolution(file, nil) {
 				slowPath.Add(1)
 
 				return // Format parses this one again, so the paths are free to differ
@@ -165,7 +165,7 @@ func formatWith(src []byte, mode parser.Mode) (string, error) {
 		return "", err
 	}
 
-	prune(fset, file)
+	prune(fset, file, options{forcePruning: true})
 	mergeImports(file)
 	sortImports(fset.File(file.FileStart), file, nil)
 	breaks := groupBreaks(fset, file, nil)

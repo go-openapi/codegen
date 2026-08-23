@@ -12,6 +12,11 @@ const (
 	// ErrFormat matches every error [Format] returns.
 	ErrFormat Error = "formatting error"
 
+	// ErrInconsistentImports is returned when the imports left after pruning contradict one another:
+	// one package imported under two names, or one name bound to two packages. The message names
+	// every mismatch [Format] found, and nothing is printed.
+	ErrInconsistentImports Error = "inconsistent imports"
+
 	// ErrNoGoFumpt is returned when [WithGoFumpt] is passed but the gofumpt rules were never
 	// registered. Blank-import github.com/go-openapi/codegen/formatting/enable/gofumpt.
 	ErrNoGoFumpt Error = "gofumpt requested but not enabled: blank-import " +

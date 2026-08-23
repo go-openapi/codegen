@@ -14,64 +14,37 @@ import (
 // cgoImport names the pseudo-package C, which carries a cgo preamble. Nothing may touch it.
 const cgoImport = "C"
 
-// prune deletes every import the file does not use.
+// prune deletes the imports the file does not use and can be shown not to use.
 //
-// It never adds one, and it drops an import only when it can name the package the import declares.
-// See [importedPackageNames] for what happens when it cannot.
-func prune(fset *token.FileSet, file *ast.File) {
+// It never adds one, and it deletes only an import whose name it knows: an alias states the name, the
+// generated table states it for the standard library, and [WithResolvedImports] lets the caller state
+// it for anything else. A bare third-party import is a guess, and a guess keeps an import rather than
+// delete it — see [binding.inDoubt]. [WithForceImportsPruning] turns the guesses into decisions.
+//
+// It returns the bindings, so the caller can report on what was pruned and what was left in doubt.
+func prune(fset *token.FileSet, file *ast.File, o options) ([]binding, map[string]bool) {
 	used := usedQualifiers(file)
+	bindings := describeImports(file, o.resolved)
 
 	type deletion struct{ name, path string }
 	var unused []deletion
 
-	for _, spec := range file.Imports {
-		importPath, err := strconv.Unquote(spec.Path.Value)
-		if err != nil || importPath == cgoImport {
+	for i := range bindings {
+		described := &bindings[i]
+
+		if !described.prunable(o.forcePruning) || described.isUsed(used) {
 			continue
 		}
 
-		if isUsed(spec, importPath, used) {
-			continue
-		}
-
-		name := ""
-		if spec.Name != nil {
-			name = spec.Name.Name
-		}
-		unused = append(unused, deletion{name: name, path: importPath})
+		unused = append(unused, deletion{name: described.alias, path: described.path})
+		described.pruned = true
 	}
 
 	for _, spec := range unused {
 		astutil.DeleteNamedImport(fset, file, spec.name, spec.path)
 	}
-}
 
-// isUsed reports whether any name the import could answer to appears as a package qualifier.
-func isUsed(spec *ast.ImportSpec, importPath string, used map[string]bool) bool {
-	if spec.Name != nil {
-		switch spec.Name.Name {
-		case "_", ".":
-			// a blank import runs an init, a dot import spills its names into the file scope, and
-			// neither shows up as a qualifier. Keep both.
-			return true
-		default:
-			// an alias names the package exactly, so there is nothing to guess
-			return used[spec.Name.Name]
-		}
-	}
-
-	names := importedPackageNames(importPath)
-	if len(names) == 0 {
-		return true // cannot name the package, so cannot call it unused
-	}
-
-	for _, name := range names {
-		if used[name] {
-			return true
-		}
-	}
-
-	return false
+	return bindings, used
 }
 
 // usedQualifiers collects every identifier the file uses to qualify a selector.
@@ -115,8 +88,8 @@ func usedQualifiers(file *ast.File) map[string]bool {
 // Asking about every selector base instead would be useless. A method receiver is a selector base:
 // m.ID is the same shape as fmt.Println, so m would collide with itself and no file would ever take
 // the cheap parse.
-func needsResolution(file *ast.File) bool {
-	names := importedNames(file)
+func needsResolution(file *ast.File, resolved map[string]string) bool {
+	names := importedNames(file, resolved)
 	if len(names) == 0 {
 		return false
 	}
@@ -158,9 +131,10 @@ func needsResolution(file *ast.File) bool {
 
 // importedNames returns every name the file's imports could declare.
 //
-// An alias declares its name outright. Without one the package name is guessed, and
-// [importedPackageNames] returns every guess, so a name that could belong to an import is in the set.
-func importedNames(file *ast.File) map[string]struct{} {
+// An alias declares its name outright, and [WithResolvedImports] states the names a caller supplied.
+// Without either the package name is guessed, and [importedPackageNames] returns every guess, so a
+// name that could belong to an import is in the set.
+func importedNames(file *ast.File, resolved map[string]string) map[string]struct{} {
 	names := make(map[string]struct{}, len(file.Imports))
 
 	for _, spec := range file.Imports {
@@ -174,6 +148,12 @@ func importedNames(file *ast.File) map[string]struct{} {
 
 		importPath, err := strconv.Unquote(spec.Path.Value)
 		if err != nil {
+			continue
+		}
+
+		if name, ok := resolved[importPath]; ok {
+			names[name] = struct{}{}
+
 			continue
 		}
 

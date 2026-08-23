@@ -1,0 +1,17 @@
+package p
+
+import (
+	"bytes"
+	b "bytes"
+	x "strings"
+	x "errors"
+	"crypto/rand"
+	"math/rand"
+)
+
+var (
+	_ = bytes.NewReader
+	_ b.Buffer
+	_ = x.NewReader
+	_ = rand.Read
+)
