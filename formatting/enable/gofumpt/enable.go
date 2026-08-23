@@ -33,24 +33,52 @@ func apply(fset *token.FileSet, file *ast.File) {
 	fumpt.File(fset, file, current)
 }
 
-// Option configures the gofumpt rules.
-type Option func(*fumpt.Options) error
+type (
+	// Option configures the gofumpt rules.
+	Option func(options) options
+
+	// options carries the gofumpt settings being assembled, and the first option that rejected its
+	// arguments. [fumpt.Options] holds no pointer, so the copy the chain passes along is a value.
+	options struct {
+		fumpt fumpt.Options
+		err   error
+	}
+)
+
+// withError keeps the first failure and lets the rest of the chain run.
+func (o options) withError(err error) options {
+	if o.err == nil {
+		o.err = err
+	}
+
+	return o
+}
+
+// applyWithDefaults folds the chain over the zero options, left to right.
+//
+// The zero value is gofumpt's own default: every extra rule off, and a language version of go1.
+func applyWithDefaults(opts []Option) options {
+	var o options
+
+	for _, apply := range opts {
+		o = apply(o)
+	}
+
+	return o
+}
 
 // Configure sets the rules for the whole program.
 //
 // Call it once, before formatting anything. It returns an error when an option is not one gofumpt
 // knows, and leaves the previous settings in place.
 func Configure(opts ...Option) error {
-	next := fumpt.Options{}
-
-	for _, apply := range opts {
-		if err := apply(&next); err != nil {
-			return err
-		}
+	next := applyWithDefaults(opts)
+	if next.err != nil {
+		return next.err
 	}
 
 	mx.Lock()
-	settings = next
+	settings = next.fumpt
 	mx.Unlock()
 
 	return nil
@@ -61,10 +89,10 @@ func Configure(opts ...Option) error {
 // gofumpt holds back the rules that need a language newer than the code targets. Empty means
 // go1, which holds back all of them.
 func WithLangVersion(version string) Option {
-	return func(o *fumpt.Options) error {
-		o.LangVersion = version
+	return func(o options) options {
+		o.fumpt.LangVersion = version
 
-		return nil
+		return o
 	}
 }
 
@@ -73,10 +101,10 @@ func WithLangVersion(version string) Option {
 // gofumpt reads it to decide which import paths are outside the standard library when it puts the
 // standard library imports first.
 func WithModulePath(path string) Option {
-	return func(o *fumpt.Options) error {
-		o.ModulePath = path
+	return func(o options) options {
+		o.fumpt.ModulePath = path
 
-		return nil
+		return o
 	}
 }
 
@@ -88,15 +116,15 @@ func WithModulePath(path string) Option {
 //
 //	gofumpt.WithExtraRules("group_params", "clothe_returns")
 func WithExtraRules(rules ...string) Option {
-	return func(o *fumpt.Options) error {
+	return func(o options) options {
 		// Extra.Set clears itself before reading a list, so one call per rule would keep only the
 		// last. It takes the comma-separated form gofumpt's -extra flag takes.
 		named := strings.Join(rules, ",")
 
-		if err := o.Extra.Set(named); err != nil {
-			return fmt.Errorf("unknown gofumpt rule in %q: %w", named, err)
+		if err := o.fumpt.Extra.Set(named); err != nil {
+			return o.withError(fmt.Errorf("unknown gofumpt rule in %q: %w", named, err))
 		}
 
-		return nil
+		return o
 	}
 }
