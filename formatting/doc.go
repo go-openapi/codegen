@@ -186,6 +186,13 @@
 //
 // Without that import, [WithGoFumpt] makes [Format] return [ErrNoGoFumpt].
 //
+// # Line endings
+//
+// Format writes \n. [go/printer] offers no way to ask for anything else, so a source written with
+// \r\n comes back with \n, exactly as gofmt rewrites it. A fragment is the one exception: the bytes
+// that surrounded it are put back as they were written, so its \r\n survive around a body that uses
+// \n. go/format.Source answers the same.
+//
 // # Fragments
 //
 // A source with no package clause is parsed as a declaration list, then as a statement list, the way

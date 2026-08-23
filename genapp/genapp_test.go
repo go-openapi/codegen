@@ -9,6 +9,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -241,20 +242,26 @@ func TestRenderFile(t *testing.T) {
 }
 
 // dumpedPath pulls the kept file out of a formatting error.
+//
+// The message writes the path with %q, so what follows the marker is a Go quoted string, not the path
+// itself. On Windows every separator arrives escaped - "D:\\a\\codegen" - so the quotes are cut with
+// [strconv.QuotedPrefix] and the escapes undone with [strconv.Unquote] rather than by hand.
 func dumpedPath(t *testing.T, err error) string {
 	t.Helper()
 
-	const marker = `the unformatted output is kept at "`
+	const marker = "the unformatted output is kept at "
 
 	message := err.Error()
 	start := strings.Index(message, marker)
 	require.GreaterOrEqual(t, start, 0, "the error names the file it kept: %v", err)
 
-	rest := message[start+len(marker):]
-	end := strings.IndexByte(rest, '"')
-	require.GreaterOrEqual(t, end, 0)
+	quoted, quoteErr := strconv.QuotedPrefix(message[start+len(marker):])
+	require.NoError(t, quoteErr, "the path is quoted: %v", err)
 
-	return rest[:end]
+	path, unquoteErr := strconv.Unquote(quoted)
+	require.NoError(t, unquoteErr)
+
+	return path
 }
 
 func TestNew(t *testing.T) {

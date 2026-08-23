@@ -208,6 +208,11 @@ func cutSpace(b []byte) (before, middle, after []byte) {
 	return b[:start], b[start:end], b[end:]
 }
 
+// isSpaceByte reports whether c is one of the four bytes go/format counts as space.
+//
+// \r belongs here: a fragment written on Windows separates its lines with \r\n, and leaving \r out
+// makes [cutSpace] read it as content, so [matchSpace] restores none of the space around the
+// fragment. go/format/internal.go carries the same list.
 func isSpaceByte(c byte) bool {
-	return c == ' ' || c == '\t' || c == '\n'
+	return c == ' ' || c == '\t' || c == '\n' || c == '\r'
 }
