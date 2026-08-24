@@ -96,6 +96,11 @@ func (g *GoGenApp) Render(w io.Writer, name string, data any) error {
 // reports a line and a column, and reading them means reading the source they came from; that
 // source would otherwise be gone.
 func (g *GoGenApp) RenderFile(target, name string, data any) error {
+	cleaned, err := checkedTarget(target)
+	if err != nil {
+		return err
+	}
+
 	rendered := shared.BorrowBuffer()
 	defer shared.RedeemBuffer(rendered)
 
@@ -103,12 +108,26 @@ func (g *GoGenApp) RenderFile(target, name string, data any) error {
 		return err
 	}
 
-	path := filepath.Join(g.outputPath, filepath.FromSlash(target))
-	if err := os.MkdirAll(filepath.Dir(path), dirPerm); err != nil {
-		return fmt.Errorf("cannot create the directory for %q: %w: %w", target, err, ErrGenApp)
+	root, down, err := g.openRoot()
+	if err != nil {
+		return err
+	}
+	defer func() { _ = root.Close() }()
+
+	written := destination{
+		root:      root,
+		rel:       filepath.Join(down, filepath.FromSlash(cleaned)),
+		target:    target,
+		displayed: filepath.Join(g.outputPath, filepath.FromSlash(cleaned)),
 	}
 
-	return g.writeFile(path, target, name, rendered)
+	if dir := written.dir(); dir != "." {
+		if err := root.MkdirAll(dir, dirPerm); err != nil {
+			return fmt.Errorf("cannot create the directory for %q: %w: %w", target, err, ErrGenApp)
+		}
+	}
+
+	return g.writeFile(written, name, rendered)
 }
 
 // execute renders one template into the buffer it is given.
@@ -147,8 +166,8 @@ const unformattedSuffix = ".unformatted"
 //
 // The returned error carries the formatting failure and adds the path. It attaches no second
 // [ErrGenApp]: the cause already carries one.
-func dumpUnformatted(file *os.File, path string, rendered *bytes.Buffer, cause error) error {
-	dumped := path + unformattedSuffix
+func dumpUnformatted(d destination, file *os.File, temporary string, rendered *bytes.Buffer, cause error) error {
+	dumped := d.sibling(unformattedSuffix)
 
 	written := func() error {
 		if err := file.Truncate(0); err != nil {
@@ -171,14 +190,16 @@ func dumpUnformatted(file *os.File, path string, rendered *bytes.Buffer, cause e
 			return err
 		}
 
-		return os.Rename(file.Name(), dumped)
+		return commit(dumped, temporary)
 	}()
 
 	if written != nil {
-		return fmt.Errorf("could not keep the unformatted output at %q (%w): %w", dumped, written, cause)
+		return fmt.Errorf(
+			"could not keep the unformatted output at %q (%w): %w", dumped.displayed, written, cause,
+		)
 	}
 
-	return fmt.Errorf("the unformatted output is kept at %q: %w", dumped, cause)
+	return fmt.Errorf("the unformatted output is kept at %q: %w", dumped.displayed, cause)
 }
 
 // format writes the formatted render, and hands the imports report to the caller's sink.
@@ -200,10 +221,10 @@ func (g *GoGenApp) format(w io.Writer, name string, rendered *bytes.Buffer) erro
 }
 
 // writeFile writes the target through a temporary file in the same directory, then renames.
-func (g *GoGenApp) writeFile(path, target, name string, rendered *bytes.Buffer) (err error) {
-	temporary, err := os.CreateTemp(filepath.Dir(path), "."+filepath.Base(path)+".*")
+func (g *GoGenApp) writeFile(d destination, name string, rendered *bytes.Buffer) (err error) {
+	temporary, temporaryRel, err := createTemp(d.root, d.dir(), filepath.Base(d.rel))
 	if err != nil {
-		return fmt.Errorf("cannot create a temporary file for %q: %w: %w", target, err, ErrGenApp)
+		return fmt.Errorf("cannot create a temporary file for %q: %w: %w", d.target, err, ErrGenApp)
 	}
 
 	keep := false
@@ -214,31 +235,27 @@ func (g *GoGenApp) writeFile(path, target, name string, rendered *bytes.Buffer) 
 		}
 
 		_ = temporary.Close()
-		_ = os.Remove(temporary.Name())
+		_ = d.root.Remove(temporaryRel)
 	}()
 
-	if g.skipsFormat(target) {
+	if g.skipsFormat(d.target) {
 		if _, err = temporary.Write(rendered.Bytes()); err != nil {
-			return fmt.Errorf("cannot write %q: %w: %w", target, err, ErrGenApp)
+			return fmt.Errorf("cannot write %q: %w: %w", d.target, err, ErrGenApp)
 		}
 	} else if formatErr := g.format(temporary, name, rendered); formatErr != nil {
 		keep = true
-		err = dumpUnformatted(temporary, path, rendered, formatErr)
+		err = dumpUnformatted(d, temporary, temporaryRel, rendered, formatErr)
 
 		return err
 	}
 
 	if err = temporary.Chmod(filePerm); err != nil {
-		return fmt.Errorf("cannot set the mode of %q: %w: %w", target, err, ErrGenApp)
+		return fmt.Errorf("cannot set the mode of %q: %w: %w", d.target, err, ErrGenApp)
 	}
 
 	if err = temporary.Close(); err != nil {
-		return fmt.Errorf("cannot close %q: %w: %w", target, err, ErrGenApp)
+		return fmt.Errorf("cannot close %q: %w: %w", d.target, err, ErrGenApp)
 	}
 
-	if err = os.Rename(temporary.Name(), path); err != nil {
-		return fmt.Errorf("cannot write %q: %w: %w", target, err, ErrGenApp)
-	}
-
-	return nil
+	return commit(d, temporaryRel)
 }
