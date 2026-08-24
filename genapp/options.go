@@ -18,6 +18,7 @@ type (
 	options struct {
 		templates       *repo.Repository
 		outputPath      string
+		root            string
 		formatOptions   []formatting.Option
 		importsReporter func(string, *formatting.ImportsReport)
 		skipFormat      bool
@@ -51,6 +52,42 @@ func WithTemplates(templates *repo.Repository) Option {
 func WithOutputPath(path string) Option {
 	return func(o options) options {
 		o.outputPath = path
+
+		return o
+	}
+}
+
+// WithRoot confines every file a [GoGenApp] writes to dir.
+//
+// The output path must sit at or below dir, and dir must exist. The caller declares the root, so
+// WithRoot reports a missing one instead of creating it. Nothing outside dir is written, whether a
+// target climbs out with "..", names an absolute path, or reaches a symbolic link pointing away.
+// [os.Root] checks each link as it walks the path, where a prefix test on the name alone would miss
+// a link halfway down.
+//
+//	app, err := genapp.New(
+//		genapp.WithTemplates(templates),
+//		genapp.WithOutputPath("./gen/models"),
+//		genapp.WithRoot("./gen"),
+//	)
+//
+// Use it when a spec supplies the target names, such as its operation and model names.
+//
+// Without it, writes still stay under the output path and the checks on a target still run.
+// WithRoot widens the boundary past the output path, for a generator writing into several
+// directories of one tree.
+//
+// It covers this package's writes and no more. [GoGenApp.TidyModule] runs the go command, which
+// writes go.mod and go.sum itself, and no root reaches into another process. Reads run unconfined
+// too: [GoGenApp.PackagePath] and [GoGenApp.EnclosingModule] walk up from the output path looking
+// for a go.mod, and that go.mod usually sits above any root worth setting.
+//
+// [os.Root] confines path resolution and no more. It does not stop traversal of a bind mount, a
+// /proc special file or a device file, so point WithRoot at a directory that holds only generated
+// output.
+func WithRoot(dir string) Option {
+	return func(o options) options {
+		o.root = dir
 
 		return o
 	}

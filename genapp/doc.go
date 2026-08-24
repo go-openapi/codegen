@@ -47,6 +47,35 @@
 // [WithSkipFormatFunc] to decide differently, or [WithSkipFormat] to write every target unformatted,
 // which is worth doing when a template is misbehaving and the parse error hides the output.
 //
+// # Writing outside the output path
+//
+// A generator names its targets after the models and operations of a spec, so the spec decides what
+// [GoGenApp.RenderFile] writes. RenderFile therefore refuses an absolute target, and one that climbs
+// out of the output path with "..", whether or not the caller asks to be confined.
+//
+// Writes go through [os.Root], which checks each symbolic link as it walks the path. RenderFile
+// removes a link standing at the target instead of following it, so the file it pointed at keeps its
+// content, and refuses a link on the way to the target. Renaming replaces a name rather than the
+// file behind it, so another hard link to the target keeps its own content. A directory, a device,
+// a socket or a named pipe at the target is refused rather than overwritten.
+//
+// [WithRoot] widens the boundary from the output path to a directory above it, for a generator
+// writing into several directories of one tree:
+//
+//	app, err := genapp.New(
+//		genapp.WithTemplates(templates),
+//		genapp.WithOutputPath("./gen/models"),
+//		genapp.WithRoot("./gen"),
+//	)
+//
+// Two things sit outside this. [GoGenApp.TidyModule] runs the go command, which writes go.mod and
+// go.sum itself, and no root reaches into another process. Reads run unconfined too:
+// [GoGenApp.PackagePath] and [GoGenApp.EnclosingModule] walk up from the output path looking for a
+// go.mod, and that go.mod usually sits above any root worth setting.
+//
+// [os.Root] confines path resolution and no more. It does not stop traversal of a bind mount, a
+// /proc special file or a device file.
+//
 // # Where the code lands
 //
 // A generator has to write the imports that reach the code it produces, and that means knowing the
