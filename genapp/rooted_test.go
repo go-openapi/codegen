@@ -16,6 +16,12 @@ import (
 	"github.com/go-openapi/codegen/genapp"
 )
 
+// maxSocketPath bounds the path a unix domain socket can be bound to.
+//
+// sun_path holds 104 bytes on darwin and 108 on linux, and the address has to fit whole. 100 leaves
+// room under the smaller of the two.
+const maxSocketPath = 100
+
 // skipWithoutSymlinks skips a test on a runner that cannot create one.
 //
 // Windows grants the privilege to an administrator or to a machine in developer mode, and the CI
@@ -198,11 +204,21 @@ func TestSymlinkIsNotFollowed(t *testing.T) {
 			t.Skip("unix domain sockets in the file system are not the same thing here")
 		}
 
-		dir := t.TempDir()
+		// t.TempDir() names the directory after the test, which puts the socket well past the 104
+		// bytes darwin allows in sun_path. Take a short name from the same temp root instead.
+		//nolint:usetesting // t.TempDir() overflows sun_path here, see the comment above
+		dir, err := os.MkdirTemp("", "gs")
+		require.NoError(t, err)
+		t.Cleanup(func() { _ = os.RemoveAll(dir) })
+
+		socket := filepath.Join(dir, "pet.go")
+		if len(socket) > maxSocketPath {
+			t.Skipf("%q is longer than the %d bytes sun_path holds here", socket, maxSocketPath)
+		}
 
 		var config net.ListenConfig
 
-		listener, err := config.Listen(t.Context(), "unix", filepath.Join(dir, "pet.go"))
+		listener, err := config.Listen(t.Context(), "unix", socket)
 		require.NoError(t, err)
 		defer func() { _ = listener.Close() }()
 
