@@ -4,7 +4,7 @@ go 1.25.0
 
 require (
 	github.com/go-openapi/codegen v0.0.1
-	github.com/go-openapi/testify/v2 v2.6.1
+	github.com/go-openapi/testify/v2 v2.7.0
 	mvdan.cc/gofumpt v0.11.0
 )
 
