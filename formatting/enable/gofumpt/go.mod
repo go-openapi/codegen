@@ -3,7 +3,7 @@ module github.com/go-openapi/codegen/formatting/enable/gofumpt
 go 1.26.0
 
 require (
-	github.com/go-openapi/codegen v0.0.1
+	github.com/go-openapi/codegen v0.0.2
 	github.com/go-openapi/testify/v2 v2.7.0
 	mvdan.cc/gofumpt v0.11.0
 )
