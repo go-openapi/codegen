@@ -150,6 +150,9 @@ func run(pkg, outFile, ucdDir, buildTag string) error {
 	if err != nil {
 		return err
 	}
+	// The generated file records this path, so keep it slash-separated: regenerating on Windows must not rewrite
+	// "v15/DerivedName.txt" as "v15\DerivedName.txt" and churn every table.
+	inFile = filepath.ToSlash(inFile)
 
 	if err := emit(inFile, pkg, outFile, buildTag, out); err != nil {
 		return err

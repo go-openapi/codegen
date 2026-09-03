@@ -3,7 +3,10 @@
 
 package numbers
 
-import "strconv"
+import (
+	"math"
+	"strconv"
+)
 
 // maxFullCardinal is the default magnitude up to which a number is spelled out in full.
 //
@@ -78,6 +81,15 @@ func writeCardinal(b *buf, n int64, o numberOptions) {
 
 	if n < 0 {
 		_, _ = b.WriteString("minus ")
+
+		if n == math.MinInt64 {
+			// -2^63 has no positive int64 counterpart, so negating it would leave n negative and spell nothing at all.
+			// Spell its digits instead, as [writeSpellDecimal] does for an integer too large for int64.
+			writeDigitWords(b, "9223372036854775808")
+
+			return
+		}
+
 		n = -n
 	}
 

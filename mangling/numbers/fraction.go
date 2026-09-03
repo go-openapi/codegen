@@ -4,6 +4,7 @@
 package numbers
 
 import (
+	"errors"
 	"math"
 	"strconv"
 	"strings"
@@ -132,12 +133,12 @@ func writeSpellDecimal(b *buf, s string, o numberOptions) {
 	}
 
 	x, err := strconv.ParseFloat(s, 64)
-	if err != nil {
-		_, _ = b.WriteString(s)
+	if errors.Is(err, strconv.ErrSyntax) {
+		_, _ = b.WriteString(s) // not a number at all: copy it through untouched
 
 		return
 	}
-	if x > -1 && x < 1 && x != 0 {
+	if err == nil && x > -1 && x < 1 && x != 0 {
 		if writeFraction(b, x, o) {
 			return
 		}
@@ -154,16 +155,51 @@ func writeSpellDecimal(b *buf, s string, o numberOptions) {
 	if intPart == "" {
 		intPart = "0"
 	}
-	intVal, _ := strconv.ParseInt(intPart, 10, 64)
-
-	writeCardinal(b, intVal, o)
+	if intVal, err := strconv.ParseInt(intPart, 10, 64); err == nil {
+		writeCardinal(b, intVal, o)
+	} else {
+		// The integer part overflows int64, so ParseFloat has returned +Inf or -Inf with strconv.ErrRange. Spell the
+		// digits one by one, as the integer branch above does, so the result never starts with a raw digit.
+		writeDigitWords(b, intPart)
+	}
 	_, _ = b.WriteString(" dot ")
 	writeDigitWords(b, fracPart)
 }
 
+// nonFiniteWords are the words for the three float64 values no cardinal covers.
+const (
+	nanWords         = "not a number"
+	infWords         = "infinity"
+	negativeInfWords = "minus infinity"
+)
+
+// nonFinite returns the wording of NaN and the two infinities, and whether x is one of them.
+//
+// The generated numeral table holds finite values only, so no numeral rune reaches this. It guards the conversion in
+// [numberWords] and [writeNumberValue]: int64(+Inf) is platform-defined (-2^63 on amd64), which spells out as "minus"
+// and nothing else.
+func nonFinite(x float64) (string, bool) {
+	switch {
+	case math.IsNaN(x):
+		return nanWords, true
+	case math.IsInf(x, 1):
+		return infWords, true
+	case math.IsInf(x, -1):
+		return negativeInfWords, true
+	default:
+		return "", false
+	}
+}
+
 // numberWords renders a numeric value as words: cardinal for integral values, fraction/decimal otherwise (the value is
 // formatted to its shortest exact decimal string first).
+//
+// NaN and the infinities have no cardinal form and render as [nanWords], [infWords] and [negativeInfWords].
 func numberWords(x float64, o numberOptions) string {
+	if w, ok := nonFinite(x); ok {
+		return w
+	}
+
 	if x == math.Trunc(x) {
 		return cardinal(int64(x), o)
 	}
@@ -174,6 +210,12 @@ func numberWords(x float64, o numberOptions) string {
 // writeNumberValue streams the english wording of a numeric value into b — the streaming form of [numberWords], used
 // to verbalize a Unicode numeral rune ('½' → "one half", 'Ⅶ' → "seven").
 func writeNumberValue(b *buf, x float64, o numberOptions) {
+	if w, ok := nonFinite(x); ok {
+		_, _ = b.WriteString(w)
+
+		return
+	}
+
 	if x == math.Trunc(x) {
 		writeCardinal(b, int64(x), o)
 

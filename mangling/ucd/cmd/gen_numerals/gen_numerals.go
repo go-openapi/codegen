@@ -7,7 +7,9 @@
 // It keeps the No (Number, other: vulgar fractions, superscripts, circled digits, ...) and Nl
 // (Number, letter: roman/acrophonic/cuneiform numerals) categories, and drops:
 //   - Nd (decimal digits) — the mangler already handles those via a digit-value offset;
-//   - Lo (CJK ideographic numbers) — Han script, elided during asciification.
+//   - Lo (CJK ideographic numbers) — Han script, elided during asciification;
+//   - runes whose value is NaN or infinite — UCD writes NaN for "no numeric value", and Go has no literal for either
+//     (strconv.FormatFloat emits the undefined identifiers NaN, +Inf and -Inf).
 //
 // The emitted map[rune]float64 feeds numbers.RuneNumber, so a Unicode numeral verbalizes through the same engine as an
 // ASCII number (½ -> "one half"), and the asciify tier can render it as a plain number (½ -> "0.5").
@@ -29,6 +31,7 @@ import (
 	"fmt"
 	"go/format"
 	"log"
+	"math"
 	"os"
 	"path/filepath"
 	"sort"
@@ -66,6 +69,7 @@ func run(pkg, outFile, ucdDir, buildTag string) error {
 	defer f.Close()
 
 	var nums []numeral
+	var nonFinite int
 	kept := map[string]int{} // category tallies, for the report
 
 	sc := bufio.NewScanner(f)
@@ -87,6 +91,14 @@ func run(pkg, outFile, ucdDir, buildTag string) error {
 		if err != nil {
 			continue
 		}
+		if math.IsNaN(v) || math.IsInf(v, 0) {
+			// UCD writes NaN for a rune with no numeric value, and ParseFloat also accepts the literal words "nan" and
+			// "inf". Go has no constant for either: strconv.FormatFloat would emit NaN, +Inf or -Inf, which are
+			// undefined identifiers in the generated table. Drop the rune instead.
+			nonFinite++
+
+			continue
+		}
 		lo, hi, err := codeRange(strings.TrimSpace(fields[0]))
 		if err != nil {
 			continue
@@ -105,6 +117,9 @@ func run(pkg, outFile, ucdDir, buildTag string) error {
 	if err != nil {
 		return err
 	}
+	// The generated file records this path, so keep it slash-separated: regenerating on Windows must not rewrite
+	// "v15/DerivedName.txt" as "v15\DerivedName.txt" and churn every table.
+	inFile = filepath.ToSlash(inFile)
 
 	if err := emit(inFile, pkg, outFile, buildTag, nums); err != nil {
 		return err
@@ -114,6 +129,9 @@ func run(pkg, outFile, ucdDir, buildTag string) error {
 		"numerals: kept No=%d Nl=%d, %d runes after range expansion (%d KiB map data)\n",
 		kept["No"], kept["Nl"], len(nums), (len(nums)*(4+8))/1024,
 	)
+	if nonFinite > 0 {
+		fmt.Fprintf(os.Stderr, "numerals: dropped %d rune(s) with a NaN or infinite value\n", nonFinite)
+	}
 
 	return nil
 }

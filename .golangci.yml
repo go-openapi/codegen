@@ -62,6 +62,10 @@ linters:
       - third_party$
       - builtin$
       - examples$
+    rules:
+      - path: mangling/ucd
+        linters:
+          - mnd
 formatters:
   enable:
     - gofmt

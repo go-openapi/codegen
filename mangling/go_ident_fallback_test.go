@@ -4,7 +4,10 @@
 package mangling
 
 import (
+	"strings"
 	"testing"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/go-openapi/testify/v2/assert"
 )
@@ -79,4 +82,25 @@ func TestGoIdentFallback(t *testing.T) {
 		assert.EqualT(t, "", m.Camelize("___"))
 		assert.EqualT(t, "", m.Pascalize("日本")) // elided CJK runes
 	})
+}
+
+// TestGoIdentExtremeNumbers covers the sibling contract: whatever the magnitude of a number in the input, a Go
+// identifier producer verbalizes it and never leaves a leading digit behind.
+//
+// The numbers engine spells an integer too large for int64 digit by digit, and -2^63 the same way.
+func TestGoIdentExtremeNumbers(t *testing.T) {
+	t.Parallel()
+
+	g := MakeGoMangler()
+	for _, in := range []string{
+		"99999999999999999999.5",              // integer part beyond int64
+		"-9223372036854775808 items",          // -2^63, no positive int64 counterpart
+		"1" + strings.Repeat("0", 400),        // beyond float64 range: ParseFloat overflows to +Inf
+		"1" + strings.Repeat("0", 400) + ".5", // same, with a fractional part
+	} {
+		got := g.IdentExported(in)
+		assert.NotEmptyf(t, got, "IdentExported(%q)", in)
+		first, _ := utf8.DecodeRuneInString(got)
+		assert.Truef(t, unicode.IsLetter(first), "IdentExported(%q) starts with %q: %.40q", in, first, got)
+	}
 }
