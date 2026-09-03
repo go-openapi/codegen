@@ -7,7 +7,7 @@
 // files beside them are what the formatter is given.
 module github.com/go-openapi/codegen/formatting/testdata/corpus
 
-go 1.25.0
+go 1.26.0
 
 require (
 	github.com/go-openapi/swag/conv v0.29.1
