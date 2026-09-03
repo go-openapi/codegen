@@ -162,5 +162,5 @@ func UCDRoot() (string, error) {
 		return r == '\n' || r == '\r' || unicode.IsSpace(r)
 	}))
 
-	return filepath.Join(root, "mangling", "v2", "ucd"), nil // TODO: temporary location
+	return filepath.Join(root, "mangling", "ucd"), nil
 }
