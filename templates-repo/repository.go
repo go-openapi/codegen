@@ -434,8 +434,8 @@ func parseAssets(assets []asset, settings options) (parsedAssets, error) {
 				fmt.Errorf("could not parse template %q from asset %q: %w: %w", owner, item.path, err, ErrTemplateRepo)
 		}
 
-		if settings.templateOption != "" {
-			tpl = tpl.Option(settings.templateOption)
+		if settings.templateOption != MissingKeyBehaviorNone {
+			tpl = tpl.Option(string(settings.templateOption))
 		}
 
 		declaredHere := make(map[string]*declared, len(tpl.Templates()))

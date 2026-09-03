@@ -36,7 +36,7 @@ type (
 		coverPrefix    string
 		err            error
 		coverage       bool
-		templateOption string
+		templateOption MissingKeyBehavior
 	}
 )
 
@@ -264,6 +264,7 @@ func WithCoverage(prefix string) Option {
 type MissingKeyBehavior string
 
 const (
+	MissingKeyBehaviorNone    MissingKeyBehavior = ""
 	MissingKeyBehaviorDefault MissingKeyBehavior = "missingkey=default"
 	MissingKeyBehaviorZero    MissingKeyBehavior = "missingkey=zero"
 	MissingKeyBehaviorError   MissingKeyBehavior = "missingkey=error"
@@ -276,7 +277,7 @@ const (
 //   - [MissingKeyBehaviorError]: execution stops with an error
 func WithMissingKey(onMissingKey MissingKeyBehavior) Option {
 	return func(o options) options {
-		o.templateOption = string(onMissingKey)
+		o.templateOption = onMissingKey
 
 		return o
 	}
