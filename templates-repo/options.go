@@ -29,13 +29,14 @@ type (
 	// options holds the settings of a repository, the sources it is yet to read, and the first
 	// option that rejected its arguments.
 	options struct {
-		sources     []source
-		funcs       template.FuncMap
-		extensions  []string
-		roots       []string
-		coverPrefix string
-		err         error
-		coverage    bool
+		sources        []source
+		funcs          template.FuncMap
+		extensions     []string
+		roots          []string
+		coverPrefix    string
+		err            error
+		coverage       bool
+		templateOption string
 	}
 )
 
@@ -254,6 +255,28 @@ func WithCoverage(prefix string) Option {
 
 		o.coverage = true
 		o.coverPrefix = strings.TrimSuffix(prefix, "/") + "/"
+
+		return o
+	}
+}
+
+// MissingKeyBehavior exposes the options provided by [template.Template].
+type MissingKeyBehavior string
+
+const (
+	MissingKeyBehaviorDefault MissingKeyBehavior = "missingkey=default"
+	MissingKeyBehaviorZero    MissingKeyBehavior = "missingkey=zero"
+	MissingKeyBehaviorError   MissingKeyBehavior = "missingkey=error"
+)
+
+// WithMissingKey instructs templates to be built with the options provided by [template.Template]:
+//
+//   - [MissingKeyBehaviorDefault]: execution continues on missing keys on maps, the value is set to "<no value>".
+//   - [MissingKeyBehaviorZero]: execution continues with the value set to the zero value of the element type.
+//   - [MissingKeyBehaviorError]: execution stops with an error
+func WithMissingKey(onMissingKey MissingKeyBehavior) Option {
+	return func(o options) options {
+		o.templateOption = string(onMissingKey)
 
 		return o
 	}
