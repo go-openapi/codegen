@@ -10,8 +10,6 @@ module github.com/go-openapi/codegen/formatting/testdata/corpus
 go 1.26.0
 
 require (
-	github.com/go-openapi/swag/conv v0.29.1
+	github.com/go-openapi/swag/conv v0.29.2
 	gopkg.in/yaml.v3 v3.0.1
 )
-
-require github.com/go-openapi/testify/v2 v2.7.0 // indirect

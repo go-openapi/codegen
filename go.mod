@@ -5,8 +5,8 @@ go 1.26.0
 require (
 	github.com/go-openapi/codegen/mangling v0.0.2
 	github.com/go-openapi/inflect v1.0.0
-	github.com/go-openapi/swag/conv v0.29.1
-	github.com/go-openapi/swag/pools v0.29.1
+	github.com/go-openapi/swag/conv v0.29.2
+	github.com/go-openapi/swag/pools v0.29.2
 	github.com/go-openapi/testify/v2 v2.7.0
 	golang.org/x/mod v0.41.0
 	golang.org/x/tools v0.49.0
