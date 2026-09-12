@@ -4,7 +4,7 @@ go 1.26.0
 
 require (
 	github.com/go-openapi/codegen v0.0.2
-	github.com/go-openapi/testify/v2 v2.7.0
+	github.com/go-openapi/testify/v2 v2.8.0
 	mvdan.cc/gofumpt v0.11.0
 )
 
