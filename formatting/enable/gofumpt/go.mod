@@ -10,6 +10,6 @@ require (
 
 replace github.com/go-openapi/codegen => ../../..
 
-require golang.org/x/tools v0.49.0 // indirect
+require golang.org/x/tools v0.50.0 // indirect
 
 replace github.com/go-openapi/codegen/mangling => ../../../mangling
