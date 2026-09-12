@@ -7,7 +7,7 @@ require (
 	github.com/go-openapi/inflect v1.0.0
 	github.com/go-openapi/swag/conv v0.29.2
 	github.com/go-openapi/swag/pools v0.29.2
-	github.com/go-openapi/testify/v2 v2.7.0
+	github.com/go-openapi/testify/v2 v2.8.0
 	golang.org/x/mod v0.41.0
 	golang.org/x/tools v0.50.0
 )
