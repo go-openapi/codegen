@@ -36,6 +36,19 @@ func render(t *testing.T, r *Repository, name string) string {
 	return out.String()
 }
 
+// executeWith renders a template of a repository against data.
+func executeWith(t *testing.T, r *Repository, name string, data any) (string, error) {
+	t.Helper()
+
+	tpl, err := r.Get(name)
+	require.NoErrorf(t, err, "expected %q to be declared", name)
+
+	var out strings.Builder
+	err = tpl.Execute(&out, data)
+
+	return out.String(), err
+}
+
 func TestNew(t *testing.T) {
 	t.Run("should declare a template per asset", func(t *testing.T) {
 		r, err := New(FromFS(fstest.MapFS{

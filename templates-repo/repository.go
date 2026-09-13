@@ -298,6 +298,9 @@ func build(assets []asset, layers int, settings options) (*Repository, error) {
 	}
 
 	namespace := template.New(namespaceName).Funcs(settings.funcs)
+	if settings.templateOption != MissingKeyBehaviorNone {
+		namespace = namespace.Option(string(settings.templateOption))
+	}
 
 	var profile *cover.Profile
 	if settings.coverage {
@@ -432,10 +435,6 @@ func parseAssets(assets []asset, settings options) (parsedAssets, error) {
 		if err != nil {
 			return parsedAssets{},
 				fmt.Errorf("could not parse template %q from asset %q: %w: %w", owner, item.path, err, ErrTemplateRepo)
-		}
-
-		if settings.templateOption != MissingKeyBehaviorNone {
-			tpl = tpl.Option(string(settings.templateOption))
 		}
 
 		declaredHere := make(map[string]*declared, len(tpl.Templates()))

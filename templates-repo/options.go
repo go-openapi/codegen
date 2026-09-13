@@ -90,11 +90,12 @@ func (o options) apply(opts []Option) options {
 // directly, so carrying them over would read them twice.
 func (o options) derive() options {
 	return options{
-		funcs:       maps.Clone(o.funcs),
-		extensions:  slices.Clone(o.extensions),
-		roots:       slices.Clone(o.roots),
-		coverPrefix: o.coverPrefix,
-		coverage:    o.coverage,
+		funcs:          maps.Clone(o.funcs),
+		extensions:     slices.Clone(o.extensions),
+		roots:          slices.Clone(o.roots),
+		coverPrefix:    o.coverPrefix,
+		coverage:       o.coverage,
+		templateOption: o.templateOption,
 	}
 }
 
