@@ -102,6 +102,10 @@
 // Every asset is still read and parsed, because a template only announces its name once parsed.
 // The assets are retained whole, so a later [Clone] with [WithExtraRoots] widens the scope again.
 //
+// A scope only has to bind the functions its own templates call, so a pruned template may call a
+// function no func map provides. Scope a repository and give it [WithFuncMap] of the parts it
+// keeps, and the parts it drops cost it nothing.
+//
 // [Repository.Roots] returns the current scope, and is empty when the repository kept everything
 // it read.
 //

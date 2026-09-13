@@ -235,6 +235,27 @@ scoped, err := repo.Clone(repository, repo.WithRoots(repository.NameOf("client/c
 > a filter naming a template that does not exist would build a repository that quietly generates nothing.
 > Naming an address instead of a name reports that same error, and says so.
 
+#### A scope only binds the functions it calls
+
+Every asset is still read and parsed, so a source that does not parse is an error whether the roots
+prune it away or not. The funcmap is the exception. A repository scoped to a few roots only has to
+bind what its own templates call, so you can assemble a set from several parts, name the roots of
+the parts you want, and pass `WithFuncMap` of those parts alone.
+
+```go
+// server.gotmpl calls serverFunc, which nothing here binds - the roots prune it away
+client, err := repo.New(
+    repo.FromFS(everything, ""),
+    repo.WithFuncMap(clientFuncs),
+    repo.WithRoots("client"),
+)
+```
+
+The check runs on whole assets. A `define` the roots prune away still owes its functions when the
+repository keeps another template of the same file.
+
+#### Widening a scope
+
 `WithRoots` sets the scope. `WithExtraRoots` widens it. Both take names.
 
 > `WithExtraRoots` changes nothing on a repository that already keeps everything,
@@ -367,7 +388,9 @@ documentation can report what these calls reach.
 `Dynamic` lists the templates that use `call`, which at least bounds the blind spot.
 
 A function that no funcmap provides never reaches the audit: templates are parsed against the
-funcmap, so calling a function nothing provides fails the build.
+funcmap, so calling a function nothing provides fails the build. In a repository scoped with
+`WithRoots`, that check covers the assets the roots keep, so a pruned template may call a function
+nothing provides.
 
 ### Self-documentation
 

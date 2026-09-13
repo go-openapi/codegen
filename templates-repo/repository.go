@@ -268,8 +268,15 @@ func (r *Repository) NameOf(address string) string {
 // Assets are read in order, so that a template declared twice keeps its last definition. They are
 // all parsed before any of them is registered, because which templates the repository keeps is
 // decided on the call graph they form, and only the templates it keeps are instrumented.
+//
+// A scoped repository parses twice. Only a parsed template yields the call graph the roots are
+// followed over, so the first pass skips the check that every function a template calls is bound,
+// and [checkFunctions] runs it again over the assets the roots keep. An unscoped repository keeps
+// every template it reads, so it parses once, with the check.
 func build(assets []asset, layers int, settings options) (*Repository, error) {
-	parsed, err := parseAssets(assets, settings)
+	scoped := len(settings.roots) > 0
+
+	parsed, err := parseAssets(assets, settings, scoped)
 	if err != nil {
 		return nil, err
 	}
@@ -295,6 +302,12 @@ func build(assets []asset, layers int, settings options) (*Repository, error) {
 
 	if err := reportUnresolved(unresolved, retained); err != nil {
 		return nil, err
+	}
+
+	if scoped {
+		if err := checkFunctions(parsed, retained, settings); err != nil {
+			return nil, err
+		}
 	}
 
 	namespace := template.New(namespaceName).Funcs(settings.funcs)
@@ -369,6 +382,17 @@ type parsedAsset struct {
 	declared map[string]*declared
 }
 
+// contributes reports whether a repository keeps any of the templates this asset declares.
+func (p parsedAsset) contributes(retained map[string]struct{}) bool {
+	for _, item := range p.declared {
+		if _, keep := retained[item.key]; keep {
+			return true
+		}
+	}
+
+	return false
+}
+
 // parsedAssets holds the result of parsing every asset of a repository.
 type parsedAssets struct {
 	// assets holds the parsed assets, in the order they were read.
@@ -420,7 +444,7 @@ func (p parsedAssets) declarationsOf(retained map[string]struct{}) map[string]de
 // An asset declares a template at its own path, plus one per inner "define" statement, addressed
 // under it. Each is parsed on its own, so that what it declares is known, and checked, before any
 // of it is registered.
-func parseAssets(assets []asset, settings options) (parsedAssets, error) {
+func parseAssets(assets []asset, settings options, permissive bool) (parsedAssets, error) {
 	parsed := parsedAssets{
 		assets:       make([]parsedAsset, 0, len(assets)),
 		declarations: make(map[string]declaration, len(assets)),
@@ -431,19 +455,15 @@ func parseAssets(assets []asset, settings options) (parsedAssets, error) {
 	for _, item := range assets {
 		owner := settings.trimmedPath(item.path)
 
-		tpl, err := template.New(owner).Funcs(settings.funcs).Parse(string(item.data))
+		trees, err := parseAsset(owner, item.data, settings, permissive)
 		if err != nil {
 			return parsedAssets{},
 				fmt.Errorf("could not parse template %q from asset %q: %w: %w", owner, item.path, err, ErrTemplateRepo)
 		}
 
-		declaredHere := make(map[string]*declared, len(tpl.Templates()))
-		for _, found := range tpl.Templates() {
-			if found.Tree == nil {
-				continue
-			}
-
-			bare := found.Name()
+		declaredHere := make(map[string]*declared, len(trees))
+		for name, tree := range trees {
+			bare := name
 			address := addressOf(owner, bare)
 			if bare == owner {
 				bare = ""
@@ -453,7 +473,7 @@ func parseAssets(assets []asset, settings options) (parsedAssets, error) {
 				return parsedAssets{}, err
 			}
 
-			if err := checkOverride(parsed.declared, address, found.Tree, item.path); err != nil {
+			if err := checkOverride(parsed.declared, address, tree, item.path); err != nil {
 				return parsedAssets{}, err
 			}
 
@@ -464,7 +484,7 @@ func parseAssets(assets []asset, settings options) (parsedAssets, error) {
 				bare:      bare,
 				assetPath: item.path,
 				layer:     item.layer,
-				tree:      found.Tree,
+				tree:      tree,
 			}
 		}
 
@@ -480,6 +500,74 @@ func parseAssets(assets []asset, settings options) (parsedAssets, error) {
 	}
 
 	return parsed, nil
+}
+
+// parseAsset parses one asset and returns the templates it declares, keyed by the name each was
+// declared under: the path of the asset for the template it holds, and the name a "define"
+// statement gives for each of those.
+//
+// permissive parses under [text/template/parse.SkipFuncCheck], which drops the check that every
+// function a template calls is bound and drops nothing else: a syntax error, an undefined variable
+// and a name defined twice are still reported. The parser builds the same nodes either way, so
+// [build] registers these trees, however parseAsset was called.
+//
+// Pass the func map even when the check is skipped. The parser reads it a second time, to decide
+// whether "break" and "continue" lex as keywords, and [text/template/parse.SkipFuncCheck] leaves
+// that read alone.
+func parseAsset(owner string, data []byte, settings options, permissive bool) (map[string]*parse.Tree, error) {
+	if !permissive {
+		tpl, err := template.New(owner).Funcs(settings.funcs).Parse(string(data))
+		if err != nil {
+			return nil, err
+		}
+
+		trees := make(map[string]*parse.Tree, len(tpl.Templates()))
+		for _, found := range tpl.Templates() {
+			if found.Tree == nil {
+				continue
+			}
+
+			trees[found.Name()] = found.Tree
+		}
+
+		return trees, nil
+	}
+
+	trees := make(map[string]*parse.Tree)
+	tree := parse.New(owner)
+	tree.Mode = parse.SkipFuncCheck
+
+	if _, err := tree.Parse(string(data), "", "", trees, map[string]any(settings.funcs)); err != nil {
+		return nil, err
+	}
+
+	return trees, nil
+}
+
+// checkFunctions reports a function that a template the roots keep calls and no func map binds.
+//
+// [parseAsset] skipped that check, so that a repository scoped by [WithRoots] does not have to
+// bind the functions of the templates it prunes away. Parsing the surviving assets again leaves
+// the check, and its message, to text/template. The trees are dropped, since [build] registers
+// what [parseAsset] already built.
+//
+// An asset is checked whole, so a pruned "define" still owes its functions when the repository
+// keeps another template of the same asset.
+func checkFunctions(parsed parsedAssets, retained map[string]struct{}, settings options) error {
+	for _, item := range parsed.assets {
+		if !item.contributes(retained) {
+			continue
+		}
+
+		owner := settings.trimmedPath(item.item.path)
+		if _, err := template.New(owner).Funcs(settings.funcs).Parse(string(item.item.data)); err != nil {
+			return fmt.Errorf(
+				"asset %q holds a template this repository keeps, and calls a function no func map binds: %w: %w",
+				item.item.path, err, ErrTemplateRepo)
+		}
+	}
+
+	return nil
 }
 
 // register adds the retained templates of one asset to the namespace.

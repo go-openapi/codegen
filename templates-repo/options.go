@@ -108,6 +108,9 @@ func (o options) derive() options {
 // Functions are bound when templates are parsed, which is why they cannot be changed afterwards.
 // Adding a function to an existing repository is [Clone] with this option: the clone re-parses
 // its templates, so the new function reaches all of them.
+//
+// A repository scoped by [WithRoots] only needs the functions its own templates call. Bind the
+// maps of the parts it is scoped to, and leave out the rest.
 func WithFuncMap(funcs template.FuncMap) Option {
 	return func(o options) options {
 		maps.Copy(o.funcs, funcs)
@@ -149,9 +152,14 @@ func WithExtensions(extensions ...string) Option {
 // repository that generates nothing, which is worse than a build that fails.
 //
 // Everything is still read and parsed, since a template only names itself once parsed, so a source
-// that does not parse is an error whether it is pruned away or not. Pruning decides only which
-// templates the repository holds, and therefore what [Repository.Names] lists, what its
-// documentation covers, and what its coverage counts.
+// that does not parse is an error whether it is pruned away or not.
+//
+// The func map is the exception. A pruned template may call a function nothing binds, so a scope
+// only has to bind what its own templates call. The check runs on whole assets, so a pruned
+// "define" still owes its functions when the repository keeps another template of the same asset.
+//
+// Pruning decides only which templates the repository holds, and therefore what [Repository.Names]
+// lists, what its documentation covers, and what its coverage counts.
 //
 // This sets the scope rather than adding to it: a [Clone] naming roots of its own is scoped to
 // those alone, whatever the repository it derives from was scoped to. [WithExtraRoots] is the one
