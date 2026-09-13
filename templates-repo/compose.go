@@ -17,12 +17,12 @@ import (
 // Every address moves under base, so a repository built from server/parameter.gotmpl rebased under
 // "v2" holds v2/server/parameter, answering to v2ServerParameter.
 //
-// What the templates refer to moves with them. A reference is resolved outward from where it was
-// written, and everything it could reach is still there, one level further in, so a set that
-// resolved on its own resolves the same rebased, so a repository may be assembled rather than
-// only built.
+// What the templates refer to moves with them. A reference resolves outward from where it was
+// written, and everything it could reach sits one level further in, so a set that resolved on its
+// own resolves the same once rebased. Use this to assemble a repository out of parts written
+// apart.
 //
-// The repository it derives from is untouched.
+// source is left untouched.
 //
 // Example:
 //
@@ -53,12 +53,12 @@ func Rebase(source *Repository, base string) (*Repository, error) {
 // Merge derives a repository holding the templates of several, the last to declare an address
 // winning.
 //
-// A merge exists in order to override, so a template declared twice is not an error:
-// [Repository.Audit] reports which definition stands and which it replaced. Func maps are merged
-// the same way, by [github.com/go-openapi/codegen/funcmaps.Merge].
+// You merge in order to override, so a template declared twice is not an error.
+// [Repository.Audit] reports which definition stands and which it replaced. Func maps merge the
+// same way, through [github.com/go-openapi/codegen/funcmaps.Merge].
 //
-// Assembling sets that were written apart usually means [Rebase] first, which is what keeps their
-// addresses from meeting at all.
+// Call [Rebase] first when the sets were written apart: it moves their addresses under a base of
+// their own, so two of them never declare the same one.
 //
 // Example:
 //
@@ -75,12 +75,12 @@ func Merge(source *Repository, merged ...*Repository) (*Repository, error) {
 // Coalesce derives a repository holding the templates of several, the first to declare an address
 // winning.
 //
-// It is [Merge] the other way round: what a later repository declares at an address another one
-// already holds is dropped rather than taking its place. Func maps are coalesced the same way, by
+// It is [Merge] the other way round: a later repository declaring an address an earlier one
+// already holds is dropped, and does not take its place. Func maps coalesce the same way, through
 // [github.com/go-openapi/codegen/funcmaps.Coalesce], which also leaves the builtins alone.
 //
-// This is for assembling a set out of parts where the first one named is the one in charge, and a
-// later one only fills what is missing.
+// Use it when source holds the definitions that must win, and the later repositories only fill in
+// the addresses it does not declare.
 func Coalesce(source *Repository, coalesced ...*Repository) (*Repository, error) {
 	return compose(source, coalesced, "coalesce", func(assets []asset, taken map[string]struct{}) []asset {
 		kept := make([]asset, 0, len(assets))
@@ -96,8 +96,14 @@ func Coalesce(source *Repository, coalesced ...*Repository) (*Repository, error)
 	}, funcmaps.Coalesce)
 }
 
-// compose assembles the assets of several repositories into one, however the operation resolves
-// what they both declare.
+// compose is the body of [Merge] and [Coalesce].
+//
+// It appends the assets of each repository in others to those of source and rebuilds from the
+// result, renumbering the layers as it goes so that two repositories never share one.
+//
+// keep filters each repository's assets against the addresses already taken. [Merge] passes all of
+// them through, so the last declaration wins; [Coalesce] drops the ones already declared. combine
+// folds the func maps the same way, and operation names the failing call in the error messages.
 func compose(
 	source *Repository,
 	others []*Repository,

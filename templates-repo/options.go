@@ -13,16 +13,15 @@ import (
 
 // Option configures a [Repository] built with [New] or derived with [Clone].
 //
-// An option that cannot be honoured reports an error from [New] or [Clone], rather than at the
-// point where it is constructed: a repository built from settings the caller did not ask for is
-// worse than one that fails to build.
+// [New] and [Clone] report an option that rejected its arguments, and the option constructor does
+// not, so a repository never silently drops a setting.
 //
 // # Usage
 //
-// Options come in two kinds. Sources declare where templates are read from, and are applied in
-// order: [FromFS], [FromDir] and [FromTemplate]. Settings shape how they are read, whatever the
-// order: [WithFuncMap], [WithExtensions], [WithRoots], [WithExtraRoots] and [WithCoverage].
-// How one source is read is settled where it is declared, with a [SourceOption].
+// Options come in two kinds. Sources declare where templates are read from, and apply in order:
+// [FromFS], [FromDir] and [FromTemplate]. Settings shape how every source is read, whatever the
+// order: [WithFuncMap], [WithExtensions], [WithRoots], [WithExtraRoots] and [WithCoverage]. Use a
+// [SourceOption] to configure one source where it is declared.
 type (
 	Option func(options) options
 
@@ -42,9 +41,8 @@ type (
 
 // withError keeps the first failure and lets the rest of the chain run.
 //
-// An option reports a bad argument here rather than from its own constructor, so [New] and [Clone]
-// are where a caller sees it - which is where every other reason a repository fails to build shows
-// up too.
+// An option records a bad argument here, and its constructor returns normally, so [New] and
+// [Clone] report it along with every other reason a repository fails to build.
 func (o options) withError(err error) options {
 	if o.err == nil {
 		o.err = err
@@ -55,8 +53,8 @@ func (o options) withError(err error) options {
 
 // makeOptions applies opts on top of the defaults.
 //
-// The defaults are built afresh on every call, so that no repository shares a map or a slice
-// with another one.
+// The defaults are built afresh on every call, so no repository shares a map or a slice with
+// another one.
 func makeOptions(opts []Option) (options, error) {
 	o := options{
 		funcs:      make(template.FuncMap),
@@ -86,8 +84,8 @@ func (o options) apply(opts []Option) options {
 
 // derive copies the settings of a repository for a [Clone], with no source left to read.
 //
-// The sources of the original have already been read into assets, which the clone inherits
-// directly, so carrying them over would read them twice.
+// [Clone] inherits the assets the original already read, so derive drops the sources: carrying
+// them over would read them a second time.
 func (o options) derive() options {
 	return options{
 		funcs:          maps.Clone(o.funcs),
@@ -105,9 +103,9 @@ func (o options) derive() options {
 // [text/template]. The map is copied, and repeated calls merge, the last definition of a name
 // winning.
 //
-// Functions are bound when templates are parsed, which is why they cannot be changed afterwards.
-// Adding a function to an existing repository is [Clone] with this option: the clone re-parses
-// its templates, so the new function reaches all of them.
+// A repository binds its functions when it parses its templates, so nothing can change them
+// afterwards. To add a function to a repository already built, pass this option to [Clone]: the
+// clone re-parses every template, so the new function reaches all of them.
 //
 // A repository scoped by [WithRoots] only needs the functions its own templates call. Bind the
 // maps of the parts it is scoped to, and leave out the rest.
@@ -121,8 +119,8 @@ func WithFuncMap(funcs template.FuncMap) Option {
 
 // WithExtensions sets the file extensions recognized as templates when reading a file system.
 //
-// The default is ".gotmpl" alone. An asset whose name ends with none of them is ignored by
-// [FromFS] and [FromDir], while [FromTemplate] registers its content whatever its name.
+// The default is ".gotmpl" alone. [FromFS] and [FromDir] ignore an asset whose name ends with
+// none of them; [FromTemplate] registers its content whatever the name.
 //
 // The extension is trimmed from the asset path before its name is derived, so
 // "validation/primitive.gotmpl" is named validationPrimitive.
@@ -140,16 +138,16 @@ func WithExtensions(extensions ...string) Option {
 
 // WithRoots keeps the templates named, and the templates they reach, and prunes the rest.
 //
-// A generator ships every template it may ever need, and a single run needs a part of them: the
-// templates a client needs are not those a server needs. Naming the roots of a run keeps the
-// repository to what that run executes, and lets a template set that is incomplete for the other
-// runs build all the same.
+// A generator ships every template it may ever need, and one run uses a fraction of them: a client
+// run and a server run execute different sets. Name the roots of a run and the repository holds
+// what that run executes, so a template set that is incomplete for the other runs builds all the
+// same.
 //
 // Roots are names, the identity [Repository.Get] takes, never the address a template was declared
-// at. [Repository.NameOf] converts one to the other for a caller holding addresses.
+// at. Use [Repository.NameOf] to convert an address you already hold.
 //
-// A root no source declares is an error: a filter naming a template that does not exist builds a
-// repository that generates nothing, which is worse than a build that fails.
+// A root no source declares is an error. Nothing else would report it, since a scope naming a
+// template that does not exist builds a repository that generates nothing.
 //
 // Everything is still read and parsed, since a template only names itself once parsed, so a source
 // that does not parse is an error whether it is pruned away or not.
@@ -161,10 +159,10 @@ func WithExtensions(extensions ...string) Option {
 // Pruning decides only which templates the repository holds, and therefore what [Repository.Names]
 // lists, what its documentation covers, and what its coverage counts.
 //
-// This sets the scope rather than adding to it: a [Clone] naming roots of its own is scoped to
-// those alone, whatever the repository it derives from was scoped to. [WithExtraRoots] is the one
-// that widens a scope. A repository with no root at all keeps every template it reads, which is
-// the default.
+// WithRoots replaces the scope. A [Clone] naming roots of its own is scoped to those alone,
+// whatever the repository it derives from was scoped to. Use [WithExtraRoots] to widen a scope
+// instead. A repository with no root at all keeps every template it reads, which is the
+// default.
 //
 // Example:
 //
@@ -185,12 +183,12 @@ func WithRoots(names ...string) Option {
 
 // WithExtraRoots widens the scope of a repository with roots of its own.
 //
-// It adds to whatever [WithRoots] settled, and changes nothing on a repository that keeps every
-// template it reads, since that scope already holds them. It takes names, as [WithRoots] does.
+// It adds to whatever [WithRoots] settled, and changes nothing on a repository that already keeps
+// every template it reads. It takes names, as [WithRoots] does.
 //
-// Use it to add a template to a repository the caller did not build. [WithRoots] would be wrong
-// either way: on an unscoped repository it prunes everything else away, and on a scoped one it
-// discards the scope already set.
+// Use it to add a template to a repository you did not build. [WithRoots] is wrong either way: on
+// an unscoped repository it prunes everything else away, and on a scoped one it discards the scope
+// already set.
 //
 // Example:
 //
@@ -221,7 +219,7 @@ func WithExtraRoots(names ...string) Option {
 	}
 }
 
-// scopeOf checks the roots a caller names, and drops the repetitions.
+// scopeOf checks the roots a caller names, and drops the repeated ones.
 func scopeOf(names []string) ([]string, error) {
 	if len(names) == 0 {
 		return nil, fmt.Errorf("at least one root template is required: %w", ErrTemplateRepo)
@@ -243,13 +241,13 @@ func scopeOf(names []string) ([]string, error) {
 
 // WithCoverage counts the lines of the templates that run.
 //
-// Counting is decided here rather than later: the templates that execute have to be the ones
-// holding the counters, so a repository either is instrumented or is not. [Clone] carries the
-// setting over, and a clone of a plain repository asking for it yields an instrumented twin.
+// The counters sit in the trees that execute, so a repository is instrumented when it is built or
+// not at all. [Clone] carries the setting over, and a clone of a plain repository asking for it
+// yields an instrumented twin.
 //
 // prefix is prepended to the path of every asset in the profile [Repository.Coverage] writes.
-// go tool cover resolves the file a profile names by asking go list, so the paths have to read as
-// an import path of a package that exists, so prefix is required.
+// go tool cover resolves the file a profile names by asking go list, so every path has to read as
+// an import path of a package that exists. That is why prefix is required.
 //
 // Example:
 //

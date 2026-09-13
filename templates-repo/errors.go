@@ -5,8 +5,9 @@ package repo
 
 // repoError is the type of the sentinel errors this package declares.
 //
-// A string type keeps a sentinel a constant, so nothing may reassign it. It compares by value,
-// which is what [errors.Is] needs to find it in a chain of wrapped errors.
+// A string type keeps a sentinel a constant, so no package may reassign it. Two values of the
+// type compare equal when their strings match, so [errors.Is] finds it in a chain of wrapped
+// errors.
 type repoError string
 
 // Error implements the error interface.

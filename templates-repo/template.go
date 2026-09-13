@@ -11,13 +11,13 @@ import (
 
 // Template is a compiled template, resolved against every other template of its [Repository].
 //
-// It is obtained from [Repository.Get] and cannot be built otherwise. The zero value reports an
-// empty name and fails to execute.
+// [Repository.Get] and [Repository.Lookup] return a Template, and nothing else constructs one. The
+// zero value reports an empty name and fails to execute.
 //
-// A [Template] exposes execution and nothing else, on purpose: the methods of a
-// [text/template.Template] that alter a template would alter what the repository serves, for
-// every holder of it. There is no ExecuteTemplate either, since resolving a name is the job of
-// [Repository.Get].
+// A [Template] exposes [Template.Execute] and [Template.Name], and no more. Calling Parse, Funcs
+// or Option on the underlying [text/template.Template] would change what the repository serves to
+// every other holder of it. There is no ExecuteTemplate either: use [Repository.Get] to resolve a
+// name.
 //
 // # Concurrency
 //
@@ -38,8 +38,8 @@ func (t Template) Name() string {
 
 // Execute applies the template to data and writes the result to w.
 //
-// A template that refers to another one resolves it in the repository the template comes from.
-// The zero [Template] reports an error.
+// A template that refers to another one resolves it in the repository it comes from. The zero
+// [Template] returns an error wrapping [ErrTemplateRepo].
 func (t Template) Execute(w io.Writer, data any) error {
 	if t.tpl == nil {
 		return fmt.Errorf("zero template cannot be executed: %w", ErrTemplateRepo)

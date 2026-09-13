@@ -13,12 +13,12 @@ import (
 
 // retainedNames selects the templates a repository keeps, from the roots the caller named.
 //
-// A repository asked for no root keeps everything. Otherwise it keeps the roots and whatever they
-// reach: a template referring to another one keeps it, all the way down, and a loop of templates
-// stops at the ones already kept.
+// An empty roots keeps every template in byKey. Otherwise retainedNames keeps the roots and
+// whatever they reach: a template referring to another one keeps it, all the way down, and a loop
+// stops at the templates already kept.
 //
-// A root no source declares is an error. Nothing else would report it, since a filter naming a
-// template that does not exist builds a repository that quietly generates nothing.
+// A root no source declares is an error. Nothing else would report it, since a scope naming a
+// template that does not exist builds a repository that generates nothing.
 func retainedNames(byKey map[string]*declared, roots []string) (map[string]struct{}, error) {
 	retained := make(map[string]struct{}, len(byKey))
 
@@ -71,8 +71,8 @@ func retainedNames(byKey map[string]*declared, roots []string) (map[string]struc
 
 // dependenciesOf collects the names a template refers to, sorted and deduplicated.
 //
-// Only the nodes that may hold a template invocation are walked. An action holds an expression,
-// never an invocation, so it has no child worth visiting.
+// It walks only the nodes that may hold a template invocation. An action holds an expression and
+// never an invocation, so it has no child to visit.
 func dependenciesOf(node parse.Node) []string {
 	found := make(map[string]struct{})
 	collectDependencies(node, found)

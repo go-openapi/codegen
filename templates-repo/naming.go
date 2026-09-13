@@ -26,9 +26,9 @@ const DefaultExtension = ".gotmpl"
 
 // TemplateName returns the name a repository gives an asset at a path.
 //
-// It computes the name before a repository exists, for a caller that has to choose its sources by
-// name: the name decides what to build, so it cannot wait for the build.
-// [Repository.NameOf] answers the same question for a repository already built.
+// Call it before a repository exists, to name the roots a build is scoped to or to pick the
+// sources to declare. [Repository.NameOf] answers the same question once the repository is
+// built.
 //
 // The extensions are those the repository recognizes, [DefaultExtension] when none is given.
 //
@@ -64,8 +64,8 @@ func (o options) templateName(assetPath string) string {
 
 // trimmedPath is the address an asset declares its own template at.
 //
-// It is the asset path with the extension trimmed, and nothing else: an address is never mangled,
-// which is what lets a reference be written the way its author sees the tree.
+// It is the asset path with the extension trimmed, and nothing else. An address is never mangled,
+// so an author writes a reference the way the tree is laid out on disk.
 func (o options) trimmedPath(assetPath string) string {
 	return trimExtension(assetPath, o.extensions)
 }

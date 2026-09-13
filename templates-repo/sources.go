@@ -14,9 +14,9 @@ import (
 
 // asset is a template file read from a source, held for as long as the repository lives.
 //
-// The path is the asset's, once mounted, slash-separated and cleaned. The name of the template is
-// derived from it, so the path is retained rather than the name: a [Clone] that changes the
-// recognized extensions renames the templates accordingly.
+// The path is the asset's, once mounted, slash-separated and cleaned. An asset holds its path and
+// not its name, because [TemplateName] derives the name from the path and the extensions in force:
+// a [Clone] changing [WithExtensions] renames the templates accordingly.
 //
 // The layer records which source read the asset. Layers are numbered in the order the sources are
 // declared, and a [Clone] carries on where the repository it derives from left off, so two assets
@@ -32,12 +32,11 @@ type source func(options) ([]asset, error)
 
 // FromFS reads every supported asset of fsys, and mounts them at mountPoint.
 //
-// fsys is read from its root, so a caller serving a subtree re-roots it beforehand with
-// [io/fs.Sub]. An empty mountPoint, or ".", mounts the assets at the top of the template tree,
-// which is the usual case.
+// fsys is read from its root. Use [io/fs.Sub] to serve a subtree. An empty mountPoint, or ".",
+// mounts the assets at the top of the template tree, which is the usual case.
 //
-// Overriding is not this option's business: a caller that wants one set of files to take
-// precedence over another stacks them into a single [io/fs.FS] first, and passes the result.
+// FromFS does not override. To make one set of files take precedence over another, stack them
+// into a single [io/fs.FS] and pass the result.
 //
 // Example:
 //
@@ -74,8 +73,8 @@ func FromFS(fsys fs.FS, mountPoint string, opts ...SourceOption) Option {
 // need as a single option.
 //
 // A set of templates is rarely one source: the templates themselves, the ones that place each
-// generated section, and whatever else a package ships. The caller assembling them does not have
-// to know how many there are, nor in what order they go.
+// generated section, and whatever else a package ships. Export a single [Option] and the caller
+// assembling it needs to know neither how many sources there are nor what order they go in.
 //
 // Example:
 //
@@ -94,9 +93,9 @@ func Sources(opts ...Option) Option {
 
 // SourceOption configures how one source is read.
 //
-// Which directories to skip describes the file system being walked, not the repository. Skipping a
-// directory of the assets one source ships leaves a directory of the same name fully readable in
-// a template set someone else brings.
+// A [SourceOption] describes the file system being walked, not the repository. [SkipDirectories]
+// on one source leaves a directory of the same name fully readable in a template set someone else
+// brings.
 type SourceOption func(sourceOptions) sourceOptions
 
 // sourceOptions holds the settings of a single source.
@@ -117,8 +116,8 @@ func (o sourceOptions) withError(err error) sourceOptions {
 
 // Rebased mounts a source under a base, on top of wherever it already mounts.
 //
-// Use it to publish templates without knowing where they land: the package exports sources, and
-// the caller assembling them chooses the mount point of each.
+// Use it to publish templates without knowing where they land. The package exports its sources,
+// and whoever assembles them picks the mount point of each.
 //
 // Example:
 //
@@ -171,9 +170,8 @@ func makeSourceOptions(opts []SourceOption) (sourceOptions, error) {
 
 // SkipDirectories walks past the directories named, wherever they are in the tree read.
 //
-// Directories are matched on their name, at any depth. Nothing is skipped by default. Use this
-// to stack a set of alternate templates without reading all of it, on the source that holds
-// them.
+// Directories are matched on their name, at any depth. Nothing is skipped by default. Put it on
+// the source that ships the alternate sets, then declare the set you want as a further source.
 //
 // Example:
 //
@@ -189,7 +187,7 @@ func SkipDirectories(names ...string) SourceOption {
 
 // FromDir reads every supported asset of a local directory, and mounts them at mountPoint.
 //
-// dir is a path in the os file system, and the assets are named relative to it. It is the
+// dir is a path in the os file system, and the assets are named relative to it. FromDir is the
 // shorthand for [FromFS] over an [os.DirFS], and it reports an error when dir is not a readable
 // directory.
 //
@@ -226,17 +224,17 @@ func FromDir(dir, mountPoint string, opts ...SourceOption) Option {
 
 // FromRepository reads the templates another repository holds, and mounts them at mountPoint.
 //
-// This is how a set assembled out of parts is built in one pass. A repository is only built when
-// everything it refers to is there, so a scaffolding that calls into the parts it is assembled
-// with cannot stand on its own. Declare the parts as sources of the same build, and each may be
-// written apart and resolved together.
+// Use it to build a set out of parts in one pass. [New] only builds a repository when every
+// template it refers to is there, so a scaffolding calling into the parts it assembles cannot
+// build on its own. Declare those parts as sources of the same build, and each one is written
+// apart and resolved together.
 //
-// The templates of the repository are read as they were declared, and mounting them somewhere
-// moves their addresses the way [Rebase] does. What they refer to moves with them, so a set that
-// resolved on its own resolves the same mounted.
+// The templates are read as they were declared, and mounting them moves their addresses the way
+// [Rebase] does. What they refer to moves with them, so a set that resolved on its own resolves
+// the same mounted.
 //
-// Nothing of the repository is read again: it retained the content of its own sources, and that is
-// what is carried over. It is left untouched.
+// FromRepository reads no source of source again. It carries over the content source retained when
+// it was built. source is left untouched.
 //
 // Example:
 //
@@ -280,15 +278,16 @@ func FromRepository(source *Repository, mountPoint string, opts ...SourceOption)
 
 // FromTemplate registers a single template held in memory, at the address given.
 //
-// The address locates the template, exactly as written, so it may hold directories and it
-// is never mangled: overriding a template declared elsewhere means naming the address it was
-// declared at. The key it answers to is derived from the address like any other.
+// The address locates the template exactly as written, so it may hold directories, and it is never
+// mangled. To override a template declared elsewhere, name the address it was declared at. The
+// name it answers to is derived from the address like any other.
 //
-// Unlike an asset read from a file system, it is registered whatever its extension.
+// [FromFS] and [FromDir] only read an asset whose name carries a recognized extension. FromTemplate
+// registers content whatever the name.
 //
-// This is the way to declare a template that no file holds, such as one a configuration
-// provides. A caller holding several of them is better served by an in-memory [io/fs.FS] passed
-// to [FromFS], which keeps every override going through the same mechanism.
+// Declare a template no file holds this way, such as one a configuration provides. For several of
+// them, build an in-memory [io/fs.FS] and pass it to [FromFS], so every override goes through one
+// mechanism.
 //
 // The content is retained, not copied.
 func FromTemplate(name string, content []byte, opts ...SourceOption) Option {
@@ -315,9 +314,9 @@ func FromTemplate(name string, content []byte, opts ...SourceOption) Option {
 
 // resolveSources reads every source declared, in the order it was declared.
 //
-// Layers are numbered from baseLayer on, so that the assets a [Clone] adds are never mistaken for
-// the ones its origin already held. The number of the next free layer is returned along with the
-// assets.
+// Layers are numbered from baseLayer on, so [checkCollision] never mistakes an asset a [Clone]
+// added for one its origin already held. resolveSources returns the next free layer along with
+// the assets.
 func (o options) resolveSources(baseLayer int) ([]asset, int, error) {
 	var assets []asset
 
@@ -378,18 +377,17 @@ func readFS(fsys fs.FS, mount string, skipped []string, settings options) ([]ass
 
 // slashed reads a caller's path the way an address is written, whatever separator they typed.
 //
-// An [io/fs.FS] always hands over slash-separated names, so only a path written by a caller can
-// carry a backslash. Reading it as a separator keeps a repository holding the same addresses on
-// every platform, so a template refers to another one the same way everywhere.
+// An [io/fs.FS] always returns slash-separated names, so only a path a caller typed can carry a
+// backslash. Reading it as a separator gives a repository the same addresses on every platform, so
+// a template refers to another one the same way everywhere.
 func slashed(p string) string {
 	return strings.ReplaceAll(p, `\`, "/")
 }
 
 // cleanMountPoint validates the place a source is mounted at in the template tree.
 //
-// An empty mount point, or ".", mounts at the top. Separators are not translated: a mount point
-// is a slash-separated path, so that the same declaration yields the same names on every
-// platform.
+// An empty mount point, or ".", mounts at the top. Separators are not translated. A mount point is
+// a slash-separated path, so the same declaration yields the same names on every platform.
 func cleanMountPoint(mountPoint string) (string, error) {
 	trimmed := strings.Trim(slashed(mountPoint), "/")
 	if trimmed == "" || trimmed == "." {

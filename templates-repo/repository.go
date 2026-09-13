@@ -18,14 +18,14 @@ import (
 
 // namespaceName is the name of the template holding the namespace shared by a repository.
 //
-// It is not a name any asset may produce, since a template name is made of recased path
-// segments, so no asset can take the place of the namespace.
+// No asset can produce that name: [TemplateName] recases path segments, and none of them yields
+// the angle brackets, so no template can take the place of the namespace.
 const namespaceName = "<repository>"
 
 // Repository is a set of compiled templates, resolved against one another and sealed.
 //
-// A repository is built by [New] from the sources given as options, and derived by [Clone].
-// It has no other constructor, and nothing alters it once built.
+// [New] builds one from the sources given as options and [Clone] derives one from another. There
+// is no other constructor, and no method changes a repository once it is built.
 //
 // # Usage
 //
@@ -37,13 +37,13 @@ const namespaceName = "<repository>"
 //     by the templates that were already there
 //   - the file system a repository was built from is not retained, and is never read again
 //
-// A clone therefore costs a full rebuild. This is meant for the settings of a program, decided
-// once, and not for a per-operation derivation.
+// A clone therefore costs a full rebuild. Use it for the settings of a program, decided once, and
+// not once per operation.
 //
 // # Concurrency
 //
-// A repository is immutable, holds no lock, and is safe for concurrent use. [Clone] only reads
-// its source, so cloning a repository other goroutines are using is safe as well.
+// A repository is immutable, holds no lock, and is safe for concurrent use. [Clone] only reads its
+// source, so it is safe to clone a repository other goroutines are executing.
 type Repository struct {
 	namespace    *template.Template
 	declarations map[string]declaration
@@ -66,11 +66,11 @@ type declaration struct {
 // New builds a repository from the sources and settings given as options.
 //
 // Sources are read in the order they are declared, and a template declared by several of them
-// comes from the last one. Reporting an error rather than a repository covers an unreadable
-// source, a template that fails to parse, a template that refers to one no source declares, and
-// an override that would silently not replace what it overrides.
+// comes from the last one. New returns an error for an unreadable source, a template that fails to
+// parse, a template referring to one no source declares, and an override that would silently not
+// replace what it overrides.
 //
-// Building a repository with no source at all yields an empty one, which is not an error.
+// Declaring no source at all builds an empty repository, and is not an error.
 //
 // Example:
 //
@@ -95,13 +95,13 @@ func New(opts ...Option) (*Repository, error) {
 
 // Clone builds a repository from the assets and settings of another one, with opts applied on top.
 //
-// The sources of source are not read again: their content, retained when source was built, is
-// carried over and the sources declared by opts are appended to it. Everything is parsed and
-// resolved afresh, so a template that opts overrides is picked up by every template referring to
-// it, and the two repositories share nothing.
+// Clone reads no source of source again. It carries over the content retained when source was
+// built and appends whatever opts declares. Everything is parsed and resolved afresh, so a
+// template opts overrides reaches every template referring to it, and the two repositories share
+// nothing.
 //
-// source is left untouched, and may be used by other goroutines while [Clone] runs. A nil source
-// reports an error.
+// source is left untouched, and other goroutines may execute it while Clone runs. A nil source
+// returns an error.
 //
 // Example:
 //
@@ -133,7 +133,7 @@ func Clone(source *Repository, opts ...Option) (*Repository, error) {
 //	address      server/parameter          where it was declared, never recased
 //	name         serverParameter           what it answers to, and what Get takes
 //
-// It reports an error when no source declares that name. The returned [Template] resolves the
+// Get returns an error when no source declares that name. The [Template] it returns resolves the
 // templates it refers to in this repository.
 func (r *Repository) Get(name string) (Template, error) {
 	if _, declared := r.declarations[name]; !declared {
@@ -145,10 +145,10 @@ func (r *Repository) Get(name string) (Template, error) {
 
 // Lookup returns the template declared at an address.
 //
-// An address is the path a template was declared at, slash-separated and never recased. This method
-// takes one, [Repository.Get] takes a name. Use whichever a caller already holds.
+// An address is the path a template was declared at, slash-separated and never recased. Lookup
+// takes one and [Repository.Get] takes a name. Use whichever you already hold.
 //
-// The extension may be left on, so the asset path a template was read from addresses it too.
+// Leave the extension on or trim it: the asset path a template was read from addresses it too.
 //
 // Example:
 //
@@ -169,8 +169,8 @@ func (r *Repository) Lookup(address string) (Template, error) {
 
 // MustLookup returns the template declared at an address, and panics when there is none.
 //
-// Use it for an address hardcoded in the program, and [Repository.Lookup] for one coming from
-// the outside.
+// Use it for an address hardcoded in the program, and [Repository.Lookup] for one a caller
+// supplies.
 func (r *Repository) MustLookup(address string) Template {
 	tpl, err := r.Lookup(address)
 	if err != nil {
@@ -182,8 +182,7 @@ func (r *Repository) MustLookup(address string) Template {
 
 // MustGet returns the template registered under a name, and panics when there is none.
 //
-// Use it for a name hardcoded in the program, and [Repository.Get] for one coming from the
-// outside.
+// Use it for a name hardcoded in the program, and [Repository.Get] for one a caller supplies.
 func (r *Repository) MustGet(name string) Template {
 	tpl, err := r.Get(name)
 	if err != nil {
@@ -229,10 +228,10 @@ func (r *Repository) AddressOf(name string) (string, bool) {
 // Roots returns the names this repository is scoped to, in the order they were given to
 // [WithRoots].
 //
-// It is empty when the repository holds every template it read, which is a repository built
-// without [WithRoots]. This reports a scope rather than deciding anything with it: a caller adding
-// a template to a repository it did not build wants [WithExtraRoots], which does the right thing
-// whether there is a scope to widen or not.
+// A build without [WithRoots] keeps every template it read, and Roots then returns an empty slice.
+// Roots reports the scope and nothing acts on it. To add a template to a repository you did not
+// build, use [WithExtraRoots]: it widens a scope when there is one and changes nothing when there
+// is not.
 func (r *Repository) Roots() []string {
 	return slices.Clone(r.settings.roots)
 }
@@ -248,26 +247,26 @@ func (r *Repository) AssetOf(name string) (string, bool) {
 
 // NameOf returns the name a template declared at an address answers to.
 //
-// It recases rather than looks up, so an address nothing declares still yields the name it would
-// have. Ask [Repository.Has] whether that name is declared. The asset path addresses a template
-// too, the extension being trimmed either way: NameOf("server/parameter.gotmpl") and
-// NameOf("server/parameter") are both serverParameter.
+// NameOf recases and does not look anything up, so an address nothing declares still yields the
+// name it would have. Call [Repository.Has] to find out whether that name is declared. The asset
+// path addresses a template too, since the extension is trimmed either way:
+// NameOf("server/parameter.gotmpl") and NameOf("server/parameter") both return serverParameter.
 //
-// Which extensions are trimmed is a setting of the repository, which is why this is a method.
-// [TemplateName] answers the same question before a repository exists.
+// It is a method because [WithExtensions] settles which extensions are trimmed. [TemplateName]
+// answers the same question before a repository exists.
 //
-// It reverses [Repository.AddressOf], and it is idempotent on the names it produces, so a name may
-// be handed back to it: NameOf("serverParameter") is serverParameter. A name an address never
-// produced is not covered by that, an inner "define" being addressed under the asset that holds it.
+// It reverses [Repository.AddressOf] and it is idempotent on the names it produces, so you may
+// hand one back to it: NameOf("serverParameter") returns serverParameter. That does not extend to
+// a name no address produces, since an inner "define" is addressed under the asset holding it.
 func (r *Repository) NameOf(address string) string {
 	return r.settings.templateName(address)
 }
 
 // build compiles a set of assets into a sealed repository.
 //
-// Assets are read in order, so that a template declared twice keeps its last definition. They are
-// all parsed before any of them is registered, because which templates the repository keeps is
-// decided on the call graph they form, and only the templates it keeps are instrumented.
+// Assets are read in order, so a template declared twice keeps its last definition. Every asset is
+// parsed before any of them is registered, because [retainedNames] walks the call graph they form
+// to decide what the repository keeps, and [register] instruments only what is kept.
 //
 // A scoped repository parses twice. Only a parsed template yields the call graph the roots are
 // followed over, so the first pass skips the check that every function a template calls is bound,
@@ -286,8 +285,8 @@ func build(assets []asset, layers int, settings options) (*Repository, error) {
 		return nil, err
 	}
 
-	// what an author wrote is relative to where they wrote it, and a namespace is flat: every
-	// reference is settled here, once, and never looked at again while a template runs
+	// an author writes a reference relative to where the template sits, and a namespace is flat.
+	// rewrite resolves every reference once, here, and no template resolves anything while it runs
 	unresolved, resolutions, err := space.rewrite()
 	if err != nil {
 		return nil, err
@@ -342,7 +341,7 @@ func build(assets []asset, layers int, settings options) (*Repository, error) {
 	}, nil
 }
 
-// keyedDeclarations indexes what a repository declares by the name it answers to.
+// keyedDeclarations indexes the declarations by the name each template answers to.
 func keyedDeclarations(byPath map[string]*declared) map[string]*declared {
 	byKey := make(map[string]*declared, len(byPath))
 	for _, item := range byPath {
@@ -354,8 +353,8 @@ func keyedDeclarations(byPath map[string]*declared) map[string]*declared {
 
 // reportUnresolved rejects a repository holding a template that refers to one it cannot address.
 //
-// Only the templates it keeps are checked, so a set that is incomplete for the runs this one is
-// not scoped to builds all the same. That is the point of scoping.
+// Only the templates it keeps are checked, so a set that is incomplete for the runs this scope
+// leaves out builds all the same.
 func reportUnresolved(unresolved map[string][]string, retained map[string]struct{}) error {
 	var missing []string
 
@@ -398,7 +397,7 @@ type parsedAssets struct {
 	// assets holds the parsed assets, in the order they were read.
 	assets []parsedAsset
 
-	// declarations records, per name, the asset the definition that stands comes from.
+	// declarations records, per name, the asset the standing definition comes from.
 	declarations map[string]declaration
 
 	// declared holds, per address, the definition that stands there.
@@ -408,7 +407,7 @@ type parsedAssets struct {
 	declaring map[string][]string
 }
 
-// overridesOf reports the names a later source redeclared, among those a repository retains.
+// overridesOf lists the retained names that a later source redeclared.
 func (p parsedAssets) overridesOf(names []string) []reports.Override {
 	var overrides []reports.Override
 
@@ -442,8 +441,8 @@ func (p parsedAssets) declarationsOf(retained map[string]struct{}) map[string]de
 // parseAssets parses every asset, and records which definition stands at each address.
 //
 // An asset declares a template at its own path, plus one per inner "define" statement, addressed
-// under it. Each is parsed on its own, so that what it declares is known, and checked, before any
-// of it is registered.
+// under it. Each asset is parsed on its own, so [checkCollision] and [checkOverride] see what it
+// declares before anything is registered.
 func parseAssets(assets []asset, settings options, permissive bool) (parsedAssets, error) {
 	parsed := parsedAssets{
 		assets:       make([]parsedAsset, 0, len(assets)),
@@ -572,8 +571,8 @@ func checkFunctions(parsed parsedAssets, retained map[string]struct{}, settings 
 
 // register adds the retained templates of one asset to the namespace.
 //
-// An asset all of whose templates were pruned away contributes nothing, counters included: a
-// template a repository does not hold is not a template its coverage has an opinion on.
+// An asset whose templates were all pruned away contributes nothing, counters included, so
+// [Repository.Coverage] never counts a line of a template the repository does not hold.
 func register(
 	namespace *template.Template,
 	parsed parsedAsset,
@@ -591,7 +590,7 @@ func register(
 		return nil
 	}
 
-	// the trees that run hold the counters, and the emptiness of a template is judged before they do
+	// the counters go into the trees that run, and [checkOverride] tested emptiness before that
 	if profile != nil {
 		instrumented := profile.Instrument(parsed.item.path, parsed.item.data, trees)
 		trees = instrumented.Trees
@@ -610,13 +609,13 @@ func register(
 
 // checkCollision reports two assets of a single source declaring the same template.
 //
-// Names are flat, so a template declared twice keeps one definition and loses the other. Which
-// one that is depends on the order the assets are read in, which a caller stacking sources
-// chooses, and which a caller pointing at a directory does not.
+// Names are flat, so a template declared twice keeps one definition and loses the other. The order
+// the assets are read in settles which. A caller stacking sources chooses that order; a caller
+// pointing [FromDir] at a directory does not.
 //
-// A redeclaration is therefore taken as intended when it crosses sources, and as a mistake when
-// it happens within one: an override is something a caller asks for by declaring a further
-// source, never something a directory listing decides.
+// So a redeclaration crossing sources is taken as intended, and one within a single source is
+// reported. You ask for an override by declaring a further source, and a directory listing never
+// decides one for you.
 func checkCollision(declarations map[string]declaration, address string, item asset) error {
 	previous, found := declarations[TemplateName(address)]
 	if !found || previous.layer != item.layer {
@@ -633,9 +632,9 @@ func checkCollision(declarations map[string]declaration, address string, item as
 // checkOverride rejects an override that would be silently ignored.
 //
 // [text/template.Template.AddParseTree] keeps the older definition when the new parse tree is
-// empty, so a tree holding nothing but white space and comments does not replace one that holds
-// something. To override a template with one that renders nothing, give it an action to run,
-// such as an empty string.
+// empty, so a tree holding nothing but white space and comments silently fails to replace one that
+// holds something. To override a template with one that renders nothing, give it an action to run,
+// such as {{ "" }}.
 func checkOverride(overriding map[string]*declared, address string, tree *parse.Tree, assetPath string) error {
 	overridden := overriding[address]
 	if overridden != nil && overridden.tree != nil &&
@@ -652,8 +651,8 @@ func checkOverride(overriding map[string]*declared, address string, tree *parse.
 // Coverage returns the counters of the templates, or nil when the repository was not built with
 // [WithCoverage].
 //
-// The templates of a repository are frozen, their counters are not. The counters record what a
-// run reaches, and are the one part of a repository that changes.
+// The templates of a repository never change; their counters do. Each counter records how many
+// times a run reached one line of one template.
 func (r *Repository) Coverage() *cover.Profile {
 	return r.coverage
 }

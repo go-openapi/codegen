@@ -10,11 +10,11 @@ import (
 	"github.com/go-openapi/codegen/templates-repo/reports"
 )
 
-// Audit reports what a repository holds that is worth a second look.
+// Audit lists the overridden, unused, empty and dynamic templates of a repository.
 //
-// It reads the assets again, as [Repository.Documentation] does, so a caller pays for it only by
-// asking. Run it where a build can fail: it reveals a contrib set that replaced a template by
-// accident, or a macro that has outlived its callers.
+// It reads the assets again, as [Repository.Documentation] does, so nothing is computed until you
+// call it. Run it where a build may fail: it finds a contrib set that replaced a template by
+// accident, and a macro no other template calls any more.
 //
 // Example:
 //

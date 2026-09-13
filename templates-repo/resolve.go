@@ -14,7 +14,7 @@ import (
 
 // declared holds one template of the repository, together with the address declaring it.
 type declared struct {
-	// address is the path the template was declared at, never mangled.
+	// address is the path the template was declared at, never recased.
 	//
 	// An asset declares a template at its own path, extension trimmed, and one per "define"
 	// statement at that path followed by the name the statement gives:
@@ -23,7 +23,7 @@ type declared struct {
 	//	{{ define "inner-macro" }} within it   ->  server/fred/inner-macro
 	address string
 
-	// key is the name [Repository.Get] takes, mangled from the path.
+	// key is the name [Repository.Get] takes, recased from the address by [TemplateName].
 	key string
 
 	// owner is the path of the asset template that declares this one, which is the path itself
@@ -56,17 +56,17 @@ func (d declared) isDefine() bool { return d.bare != "" }
 
 // addressSpace resolves what a template refers to, from where it was declared.
 //
-// A reference is mangled to a key, then looked for outward from the template holding it: its own
-// children, its directory, each enclosing directory, the root. At every level a reference matches
-// either a template addressed under that level, by the key of the path relative to it, or a
-// "define" of an asset sitting directly in it, by its bare name. The first match wins, so the
-// nearest scope shadows the ones outside it.
+// [TemplateName] recases a reference into a key, and resolve then looks outward from the template
+// holding it: its own children, its directory, each enclosing directory, the root. At every level
+// a reference matches either a template addressed under that level, by the key of the path
+// relative to it, or a "define" of an asset sitting directly in it, by its bare name. The first
+// match wins, so the nearest scope shadows the ones outside it.
 type addressSpace struct {
 	// byPath holds every template the repository declares.
 	byPath map[string]*declared
 
 	// relative maps, per scope, the key of a path relative to that scope onto the key of the
-	// template it addresses.
+	// template at that path.
 	relative map[string]map[string]string
 
 	// siblings maps, per directory, the bare name of a "define" onto the template it declares.
@@ -74,8 +74,8 @@ type addressSpace struct {
 	siblings map[string]map[string]*declared
 }
 
-// newAddressSpace indexes what a set of declarations addresses, and reports what it cannot tell
-// apart.
+// newAddressSpace indexes the declarations by scope, and reports any two that a single reference
+// would match at the same scope.
 func newAddressSpace(declarations map[string]*declared) (addressSpace, error) {
 	space := addressSpace{
 		byPath:   declarations,
@@ -138,8 +138,8 @@ func newAddressSpace(declarations map[string]*declared) (addressSpace, error) {
 
 // resolve names the template a reference held by another one addresses.
 //
-// A scope may answer a reference in two ways at once. That is an ambiguous reference rather than
-// a precedence to settle, so it is reported instead of resolved either way.
+// A scope may answer a reference in two ways at once, as the template addressed by a relative path
+// and as a "define" of the same bare name. resolve returns an error there, and picks neither.
 func (a addressSpace) resolve(from, reference string) (string, bool, error) {
 	wanted := TemplateName(reference)
 
@@ -166,9 +166,9 @@ func (a addressSpace) resolve(from, reference string) (string, bool, error) {
 
 // rewrite resolves every reference a template holds, and writes the key it addresses in its place.
 //
-// The names an author writes are relative to where they wrote them, and the namespace a template
-// executes in is flat. Resolving every reference here reconciles the two, and nothing is resolved
-// again while a template runs.
+// An author writes a reference relative to where the template sits, and the namespace a template
+// executes in is flat. rewrite settles every reference once, so no template resolves anything
+// while it runs.
 func (a addressSpace) rewrite() (map[string][]string, map[string]map[string]string, error) {
 	unresolved := make(map[string][]string)
 	resolutions := make(map[string]map[string]string)
@@ -203,7 +203,7 @@ func (a addressSpace) rewrite() (map[string][]string, map[string]map[string]stri
 	return unresolved, resolutions, nil
 }
 
-// referencesIn collects the nodes invoking another template, which are the ones to resolve.
+// referencesIn returns every [parse.TemplateNode] a tree holds. rewrite resolves each one.
 func referencesIn(node parse.Node) []*parse.TemplateNode {
 	var found []*parse.TemplateNode
 	collectReferences(node, &found)
@@ -275,8 +275,8 @@ func scopeName(scope string) string {
 	return scope
 }
 
-// sortedPaths lists the addresses of a set of declarations, so that what is built from them does
-// not depend on the order a map hands them over.
+// sortedPaths lists the addresses of a set of declarations in lexical order, so a map's iteration
+// order never changes what is built from them.
 func sortedPaths(declarations map[string]*declared) []string {
 	return slices.Sorted(maps.Keys(declarations))
 }

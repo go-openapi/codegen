@@ -16,13 +16,12 @@ import (
 
 // Documentation returns the structure of the repository and the documentation of its templates.
 //
-// The analysis runs here rather than while the repository is built: comments are dropped from the
-// trees a template executes, and the data a template reads is of no use to executing it. The
-// repository holds its sources, so both are recovered by reading them again, which only a caller
-// asking for documentation pays for.
+// A parse tree carries no comment, and records no data path the template reads. The repository
+// retains its sources, so Documentation parses them again to recover both. Nothing is computed
+// until you call it.
 //
-// The result is built on demand and shared with nobody, so a caller may hold it, walk it, or
-// render it in whatever format.
+// The result is freshly built and shared with nobody. Hold it, walk it, or render it in whatever
+// format.
 func (r *Repository) Documentation() (reports.Documentation, error) {
 	analysed, err := r.analyse()
 	if err != nil {
@@ -89,8 +88,8 @@ type analysed struct {
 
 // analyse reads the assets again and keeps, per name, what the asset that declares it reported.
 //
-// An asset overridden by a later one still gets analysed, and its findings are then replaced, so
-// the documentation stays aligned with the templates the repository actually holds.
+// An asset a later one overrides is analysed too, and the later findings then replace its own, so
+// the documentation describes the definitions the repository holds.
 func (r *Repository) analyse() (map[string]analysed, error) {
 	found := make(map[string]analysed, len(r.names))
 
@@ -122,9 +121,9 @@ func (r *Repository) analyse() (map[string]analysed, error) {
 
 // resolvedContract names the templates a contract calls the way the repository holds them.
 //
-// A template refers to another one the way its author saw the tree, and the repository settled
-// what that addresses when it was built. The analysis reads the source again, so it sees the
-// references as written and needs the same answer.
+// An author writes a reference relative to where the template sits, and [build] resolved it to a
+// name once. This analysis reads the source again, so it sees the reference as written and has to
+// resolve it the same way.
 func (r *Repository) resolvedContract(name string, contract document.Contract) document.Contract {
 	resolved := r.resolutions[name]
 	if len(resolved) == 0 {
@@ -191,8 +190,8 @@ func (r *Repository) reverseDependencies(analysed map[string]analysed) map[strin
 
 // Dump writes the documentation of the repository, as markdown by default.
 //
-// It is [reports.Dump] over what [Repository.Documentation] returns, which is the common way to
-// ask. Use reports.Dump directly to lay out a document built once and rendered several ways.
+// It calls [Repository.Documentation] and passes the result to [reports.Dump]. Call reports.Dump
+// yourself to render one document in several formats.
 func (r *Repository) Dump(w io.Writer, opts ...reports.DumpOption) error {
 	documentation, err := r.Documentation()
 	if err != nil {
