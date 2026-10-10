@@ -16,5 +16,5 @@ replace github.com/go-openapi/codegen/mangling => ./mangling
 
 require (
 	github.com/google/go-cmp v0.7.0 // indirect
-	golang.org/x/sync v0.23.0 // indirect
+	golang.org/x/sync v0.24.0 // indirect
 )
